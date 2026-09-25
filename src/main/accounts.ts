@@ -160,15 +160,33 @@ export function signIn(
   const c = ACCOUNT_COMMANDS[provider];
   const binary = binaryFor(provider, agents);
   if (!binary) return Promise.resolve({ ok: false, detail: `${c.via} is not installed.` });
+  return runBrowserSignIn(binary, c.signIn, onUrl, c.terminalCommand, timeoutMs);
+}
 
-  const fallback = `If this keeps failing, run \`${c.terminalCommand}\` in a terminal.`;
+/**
+ * Run a CLI's own browser sign-in and wait for it to finish.
+ *
+ * Used for both account sign-in and MCP server sign-in. The CLI opens the
+ * default browser and receives the approval on its own local callback, so the
+ * process must stay alive until the person finishes in the browser. If the CLI
+ * prints the sign-in address, it is passed to `onUrl` so the window can offer
+ * it as a link in case the browser did not open.
+ */
+export function runBrowserSignIn(
+  binary: string,
+  args: string[],
+  onUrl: (url: string) => void,
+  terminalCommand: string,
+  timeoutMs = 10 * 60_000,
+): Promise<AccountActionResult> {
+  const fallback = `If this keeps failing, run \`${terminalCommand}\` in a terminal.`;
 
   return new Promise((resolve) => {
     let output = '';
     let announced = false;
     let settled = false;
 
-    const child = spawn(binary, c.signIn, {
+    const child = spawn(binary, args, {
       windowsHide: true,
       shell: false,
       // stdin must be 'ignore': a closed pipe deadlocks some CLIs on Windows.

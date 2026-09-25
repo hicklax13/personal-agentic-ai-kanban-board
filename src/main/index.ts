@@ -10,6 +10,7 @@ import type {
   DiscoveryReport,
   DispatchRequest,
   EndpointSettings,
+  ProviderDefault,
   RunUpdate,
   SecretKey,
 } from '@shared/types';
@@ -18,13 +19,20 @@ import { createBoardStore } from './store/jsonStore.js';
 import { makeCard } from './store/schema.js';
 import { SecretStore, passthroughCipher, type Cipher } from './secrets/secretStore.js';
 import { SettingsStore } from './settings.js';
-import { runDiscovery } from './discovery/index.js';
+import { refreshProviders, runDiscovery, type DiscoveryInput } from './discovery/index.js';
+import { MCP_SIGN_IN_ARGS, MCP_SIGN_IN_TERMINAL } from './discovery/mcpAgents.js';
 import { Dispatcher } from './dispatch/dispatcher.js';
 import { run as runProcess } from './discovery/proc.js';
-import { captureSettingsScreens, isSmokeTest, runSmokeTest } from './smokeTest.js';
+import {
+  captureSettingsScreens,
+  isSmokeTest,
+  runSmokeTest,
+  SMOKE_TEST_SWITCHES,
+} from './smokeTest.js';
 import { buildAgentEnv } from './agents/credentials.js';
 import {
   getAccountStatuses,
+  runBrowserSignIn,
   signIn as accountSignIn,
   signOut as accountSignOut,
 } from './accounts.js';
@@ -41,6 +49,11 @@ import {
  */
 if (process.env.AGENT_KANBAN_DATA_DIR) {
   app.setPath('userData', join(process.env.AGENT_KANBAN_DATA_DIR, 'electron-profile'));
+}
+
+// Self-test captures must reflect the live DOM even when the window is covered.
+if (isSmokeTest(process.argv)) {
+  for (const [name, value] of SMOKE_TEST_SWITCHES) app.commandLine.appendSwitch(name, value);
 }
 
 /**
@@ -162,6 +175,7 @@ const dispatcher = new Dispatcher({
   getBoard: () => board ?? { version: 1, boardTitle: '', workspaceRoot: null, columns: [], cards: [], chatSessions: [], updatedAt: '' },
   getAgent: (agentId) => discovery?.agents.find((a) => a.id === agentId) ?? null,
   endpoints: () => currentEndpoints,
+  providerDefaults: () => currentProviderDefaults,
   secrets: { get: (key) => secretStore.get(key) },
   publish,
   persist: persistRunUpdate,
@@ -172,19 +186,34 @@ let currentEndpoints: EndpointSettings = {
   lmStudioBaseUrl: 'http://127.0.0.1:1234',
 };
 
+/** Loaded at startup and kept current on every save, so dispatch never waits on disk. */
+let currentProviderDefaults: Record<string, ProviderDefault> = {};
+
 // ---------------------------------------------------------------------------
 // Discovery
 // ---------------------------------------------------------------------------
 
-async function refreshDiscovery(): Promise<DiscoveryReport> {
+async function discoveryInput(): Promise<DiscoveryInput> {
   currentEndpoints = await settingsStore.read();
-  const lmKey = await secretStore.get('LM_STUDIO_API_KEY');
   const current = await getBoard();
-  discovery = await runDiscovery({
+  return {
     endpoints: currentEndpoints,
-    lmStudioApiKey: lmKey,
+    // Keys are read on demand inside the main process and used only as request
+    // headers to each provider's own model list; they never reach the window.
+    getSecret: (key) => secretStore.get(key),
     cwd: current.workspaceRoot ?? DEFAULT_WORKSPACE,
-  });
+  };
+}
+
+async function refreshDiscovery(): Promise<DiscoveryReport> {
+  discovery = await runDiscovery(await discoveryInput());
+  return discovery;
+}
+
+/** Re-read model lists and effort levels only — seconds, not the minutes a full scan takes. */
+async function refreshCatalog(): Promise<DiscoveryReport> {
+  const report = await ensureDiscovery();
+  discovery = await refreshProviders(report, await discoveryInput());
   return discovery;
 }
 
@@ -219,6 +248,7 @@ async function settingsSnapshot(): Promise<AppSettings> {
     encryptionAvailable: cipher.isAvailable() && !plaintext,
     secretsPath: SECRETS_PATH,
     boardPath: BOARD_PATH,
+    providerDefaults: await settingsStore.readProviderDefaults(),
   };
 }
 
@@ -513,6 +543,38 @@ function registerIpc(): void {
     return accountSignOut(provider, (await ensureDiscovery()).agents);
   });
 
+  ipcMain.handle(IPC.catalogRefresh, async () => refreshCatalog());
+
+  ipcMain.handle(
+    IPC.settingsSetProviderDefault,
+    async (_e, providerId: string, value: ProviderDefault) => {
+      if (typeof providerId !== 'string' || !providerId) throw new Error('A provider id is required.');
+      currentProviderDefaults = await settingsStore.setProviderDefault(providerId, value);
+      return settingsSnapshot();
+    },
+  );
+
+  /**
+   * Start an MCP server's browser sign-in through the agent that owns it.
+   *
+   * The server must be one discovery actually found for that owner. The name is
+   * passed as its own argv entry with no shell, but checking it against the
+   * known list still keeps the window from asking a CLI to sign in to anything
+   * this app did not show it.
+   */
+  ipcMain.handle(IPC.mcpSignIn, async (_e, owner: string, name: string) => {
+    const report = await ensureDiscovery();
+    const server = report.mcpServers.find((s) => s.owner === owner && s.name === name);
+    if (!server) return { ok: false, detail: `No MCP server "${name}" is configured in ${owner}.` };
+    if (server.signIn !== 'oauth') return { ok: false, detail: `${server.name} has no sign-in to run.` };
+    const agent = report.agents.find((a) => a.id === owner);
+    const args = MCP_SIGN_IN_ARGS[owner];
+    if (!agent?.binaryPath || !args) return { ok: false, detail: `${server.ownerName} is not installed.` };
+    return runBrowserSignIn(agent.binaryPath, args(name), (url) => {
+      mainWindow?.webContents.send(IPC.mcpProgress, { owner, name, url });
+    }, MCP_SIGN_IN_TERMINAL[owner](name));
+  });
+
   ipcMain.handle(IPC.dispatchStart, async (_e, req: DispatchRequest) => {
     const current = await getBoard();
     // Dispatch from the main process's card, not the renderer's copy: it is the
@@ -541,6 +603,8 @@ function createWindow(): void {
     title: 'Agent Kanban',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // A self-test drives a window nobody is looking at; keep it painting.
+      backgroundThrottling: !isSmokeTest(process.argv),
       // The renderer runs web content and must never touch Node directly.
       // contextIsolation keeps the bridged API on a separate JS world, which is
       // the boundary that stops page script from reaching into the main process.
@@ -590,6 +654,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     await getBoard();
     currentEndpoints = await settingsStore.read();
+    currentProviderDefaults = await settingsStore.readProviderDefaults();
 
     // The dispatch check runs headless: no window is needed, and creating one
     // would only add startup noise to the output being asserted on.

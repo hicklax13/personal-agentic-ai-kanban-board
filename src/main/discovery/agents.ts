@@ -351,49 +351,9 @@ async function detectLmStudio(baseUrl: string, apiKey: string | null): Promise<D
 
 // ---------------------------------------------------------------------------
 
-/**
- * ChatGPT Desktop — deliberately reported as a non-integration.
- *
- * The app is detectable on disk, but it ships no documented local socket, REST
- * endpoint or CLI that a third party may drive. Rather than inventing one, this
- * entry stays permanently "Not Connected" and names Codex as the supported way
- * to reach the same account. It appears in the UI so the gap is visible instead
- * of silently absent.
- */
-async function detectChatGptDesktop(): Promise<DiscoveredAgent> {
-  const packagesDir = join(localAppData, 'Packages');
-  let installed = false;
-  try {
-    const entries = await fs.readdir(packagesDir);
-    installed = entries.some((e) => e.startsWith('OpenAI.ChatGPT-Desktop'));
-  } catch {
-    installed = false;
-  }
-
-  return {
-    id: 'chatgpt-desktop',
-    name: 'ChatGPT Desktop',
-    transport: 'none',
-    availability: 'unavailable',
-    binaryPath: null,
-    endpoint: null,
-    version: null,
-    statusDetail: installed
-      ? 'Installed on this machine, but it exposes no documented local API for third-party apps. Not connected.'
-      : 'Not installed, and it exposes no documented local API for third-party apps. Not connected.',
-    remediation:
-      'No supported integration exists. Use the Codex agent to reach the same OpenAI account.',
-    supportsStreaming: false,
-    supportsToolScoping: false,
-    supportsMcpScoping: false,
-    supportsSkillScoping: false,
-    supportsPluginScoping: false,
-    supportsSessionResume: false,
-    providerIds: [],
-  };
-}
-
-// ---------------------------------------------------------------------------
+// ChatGPT Desktop is intentionally absent: it exposes no local interface a
+// third-party app may drive, and the owner asked for it to be removed rather
+// than shown as permanently "not connected". Codex reaches the same account.
 
 export async function discoverAgents(endpoints: {
   ollamaBaseUrl: string;
@@ -401,14 +361,12 @@ export async function discoverAgents(endpoints: {
   lmStudioApiKey: string | null;
 }): Promise<DiscoveredAgent[]> {
   // All probes are independent, so run them concurrently: startup cost is the
-  // slowest single probe rather than the sum of all six.
-  const [claude, codex, hermes, ollama, lmstudio, chatgpt] = await Promise.all([
+  // slowest single probe rather than the sum of all five.
+  return Promise.all([
     detectClaudeCode(),
     detectCodex(),
     detectHermes(),
     detectOllama(endpoints.ollamaBaseUrl),
     detectLmStudio(endpoints.lmStudioBaseUrl, endpoints.lmStudioApiKey),
-    detectChatGptDesktop(),
   ]);
-  return [claude, codex, hermes, ollama, lmstudio, chatgpt];
 }

@@ -287,6 +287,7 @@ export default function App(): React.JSX.Element {
             discovery={discovery}
             chatSessions={board.chatSessions}
             workspaceRoot={board.workspaceRoot}
+            providerDefaults={settings.providerDefaults ?? {}}
             isRunning={running.has(selectedCard.id)}
             onPatchCard={(patch) => mutate((prev) => updateCard(prev, selectedCard.id, patch))}
             onPatchConfig={(patch: Partial<CardAgentConfig>) =>
@@ -326,6 +327,12 @@ export default function App(): React.JSX.Element {
           }}
           onTestAgent={(agentId) => window.api.testAgent(agentId)}
           onRefreshDiscovery={refreshDiscovery}
+          onRefreshCatalog={async () => {
+            setDiscovery(await window.api.refreshCatalog());
+          }}
+          onSetProviderDefault={async (providerId, value) => {
+            setSettings(await window.api.setProviderDefault(providerId, value));
+          }}
         />
       ) : null}
     </div>

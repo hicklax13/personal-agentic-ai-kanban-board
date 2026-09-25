@@ -4,6 +4,7 @@ import { spawnStreaming } from './streaming.js';
 import { buildAgentEnv } from './credentials.js';
 import { sanitiseServerId } from '../discovery/tools.js';
 import type { Card } from '@shared/types';
+import { effortAccepted } from '@shared/runSettings';
 
 /**
  * Claude Code adapter — CLI subprocess with a streaming JSON protocol.
@@ -36,6 +37,7 @@ export function buildClaudeCommand(opts: ClaudeOptions): CommandPlan {
   args.push('--output-format', 'stream-json', '--include-partial-messages', '--verbose');
 
   if (card.config.model) args.push('--model', card.config.model);
+  if (effortAccepted('claude-code', card.config.effort)) args.push('--effort', card.config.effort);
 
   // Tool scoping. MCP servers are expressed as tools (`mcp__<server>`), which is
   // the granularity the CLI accepts without needing each server's full config.

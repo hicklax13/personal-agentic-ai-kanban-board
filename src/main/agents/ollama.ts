@@ -33,11 +33,15 @@ export const ollamaAdapter: AgentAdapter = {
     }
 
     const url = `${base}/api/chat`;
-    const body = {
+    const body: Record<string, unknown> = {
       model,
       messages: [{ role: 'user', content: buildPrompt(ctx.card) }],
       stream: true,
     };
+    // The card's "Thinking" choice maps to Ollama's `think` switch. Left unset,
+    // the model decides for itself.
+    if (ctx.card.config.effort === 'on') body.think = true;
+    else if (ctx.card.config.effort === 'off') body.think = false;
 
     ctx.emit({ type: 'command', command: `POST ${url}  (model=${model})` });
     ctx.emit({ type: 'status', status: 'acknowledged', text: 'Connecting to Ollama.' });

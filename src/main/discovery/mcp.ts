@@ -58,6 +58,11 @@ export function parseMcpList(stdout: string): DiscoveredMcpServer[] {
       kind,
       availability: statusToAvailability(statusText),
       statusDetail: statusText,
+      owner: 'claude-code',
+      ownerName: 'Claude Code',
+      // `claude mcp login` handles HTTP, SSE and claude.ai connector servers;
+      // a stdio server is a local program with nothing to sign in to.
+      signIn: kind === 'stdio' ? 'none' : 'oauth',
     });
   }
 

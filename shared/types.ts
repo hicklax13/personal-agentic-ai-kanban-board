@@ -35,6 +35,8 @@ export interface AgentRun {
   agentId: string;
   providerId: string | null;
   model: string | null;
+  /** Effort actually used, after defaults were applied. Absent on older runs. */
+  effort?: string | null;
   status: RunStatus;
   /** Prompt actually sent, after config was rendered into it. */
   prompt: string;
@@ -69,6 +71,8 @@ export interface CardAgentConfig {
   providerId: string | null;
   /** Concrete model id, e.g. 'claude-sonnet-5' or 'qwen3.8:27b'. */
   model: string | null;
+  /** Reasoning effort, e.g. 'high'. Null means "use the provider default". */
+  effort: string | null;
   /** Tool names the agent may use. Empty array means "agent default". */
   allowedTools: string[];
   /** MCP server ids to expose. Empty means "agent default". */
@@ -182,6 +186,14 @@ export interface DiscoveredProvider {
   models: DiscoveredModel[];
   /** True when the model list came from a live query rather than a catalog. */
   live: boolean;
+  /** Effort levels the running agent accepts for this provider. Empty = not adjustable. */
+  efforts: string[];
+  /** What the effort setting is called for this provider, e.g. "Reasoning effort". */
+  effortLabel: string;
+  /** Caveat shown under the effort picker, if any. */
+  effortNote?: string | null;
+  /** Why the live model list could not be read, when it could not. */
+  modelsError?: string | null;
 }
 
 export interface DiscoveredModel {
@@ -189,6 +201,10 @@ export interface DiscoveredModel {
   name: string;
   contextLength: number | null;
   capabilities: string[];
+  /** Effort levels this specific model accepts, when the source says (Codex does). */
+  efforts?: string[];
+  /** The model's own default effort, when the source says. */
+  defaultEffort?: string | null;
 }
 
 export interface DiscoveredMcpServer {
@@ -199,6 +215,11 @@ export interface DiscoveredMcpServer {
   kind: 'stdio' | 'http' | 'sse' | 'unknown';
   availability: Availability;
   statusDetail: string;
+  /** Agent whose configuration holds this server: 'claude-code', 'codex' or 'hermes'. */
+  owner: string;
+  ownerName: string;
+  /** 'oauth' when the owning agent can run a browser sign-in for it. */
+  signIn: 'oauth' | 'none';
 }
 
 export interface DiscoveredSkill {
@@ -261,6 +282,8 @@ export interface CredentialInfo {
   label: string;
   /** Which agent receives the key, in plain words. */
   usedBy: string;
+  /** The provider id whose models and default this key unlocks. */
+  providerId: string;
   help: string;
 }
 
@@ -277,6 +300,7 @@ export const CREDENTIALS: CredentialInfo[] = [
     key: 'OPENAI_API_KEY',
     label: 'OpenAI',
     usedBy: 'Hermes (openai-api provider)',
+    providerId: 'hermes:openai-api',
     help:
       'Codex uses your ChatGPT sign-in (Accounts tab) instead while you are signed in — a test ' +
       'key did not override it.',
@@ -285,6 +309,7 @@ export const CREDENTIALS: CredentialInfo[] = [
     key: 'ANTHROPIC_API_KEY',
     label: 'Anthropic',
     usedBy: 'Hermes (anthropic provider)',
+    providerId: 'hermes:anthropic',
     help:
       'Claude Code uses your Claude sign-in (Accounts tab) instead while you are signed in — a ' +
       'test key did not override it.',
@@ -293,48 +318,56 @@ export const CREDENTIALS: CredentialInfo[] = [
     key: 'GOOGLE_API_KEY',
     label: 'Google AI (Gemini)',
     usedBy: 'Hermes (gemini provider)',
+    providerId: 'hermes:gemini',
     help: 'Create one at Google AI Studio.',
   },
   {
     key: 'DEEPSEEK_API_KEY',
     label: 'DeepSeek',
     usedBy: 'Hermes (deepseek provider)',
+    providerId: 'hermes:deepseek',
     help: 'From the DeepSeek platform console.',
   },
   {
     key: 'XAI_API_KEY',
     label: 'xAI (Grok)',
     usedBy: 'Hermes (xai provider)',
+    providerId: 'hermes:xai',
     help: 'From the xAI console.',
   },
   {
     key: 'DEEPINFRA_API_KEY',
     label: 'DeepInfra',
     usedBy: 'Hermes (deepinfra provider)',
+    providerId: 'hermes:deepinfra',
     help: 'From your DeepInfra dashboard.',
   },
   {
     key: 'COMMANDCODE_API_KEY',
     label: 'Command Code',
     usedBy: 'Hermes (commandcode provider)',
+    providerId: 'hermes:commandcode',
     help: 'From your Command Code account.',
   },
   {
     key: 'XIAOMI_API_KEY',
     label: 'Xiaomi MiMo',
     usedBy: 'Hermes (xiaomi provider)',
+    providerId: 'hermes:xiaomi',
     help: 'From the Xiaomi MiMo platform.',
   },
   {
     key: 'OLLAMA_API_KEY',
     label: 'Ollama Cloud',
     usedBy: 'Hermes (ollama-cloud provider)',
+    providerId: 'hermes:ollama-cloud',
     help: 'From your ollama.com account. Not needed for the local Ollama app.',
   },
   {
     key: 'LM_STUDIO_API_KEY',
     label: 'LM Studio',
     usedBy: 'LM Studio (direct)',
+    providerId: 'lmstudio',
     help: 'Required to use LM Studio. Find it in LM Studio under its developer server settings.',
   },
 ];
@@ -372,6 +405,12 @@ export interface AccountSignInProgress {
   url: string;
 }
 
+export interface McpSignInProgress {
+  owner: string;
+  name: string;
+  url: string;
+}
+
 export interface EndpointSettings {
   ollamaBaseUrl: string;
   lmStudioBaseUrl: string;
@@ -387,6 +426,19 @@ export interface AppSettings {
   secretsPath: string;
   /** Absolute path of the board file. */
   boardPath: string;
+  /** Default model and effort per provider id, used when a card leaves them blank. */
+  providerDefaults: Record<string, ProviderDefault>;
+}
+
+/**
+ * The model and effort a provider uses when a card does not choose its own.
+ * `provider` is only used by the Hermes entry, where it picks which of Hermes's
+ * providers a card with no provider of its own should use.
+ */
+export interface ProviderDefault {
+  model: string | null;
+  effort: string | null;
+  provider?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -412,6 +464,13 @@ export const IPC = {
   accountsSignOut: 'accounts:signOut',
   /** main -> renderer: a sign-in page URL, in case the browser did not open. */
   accountsProgress: 'accounts:progress',
+
+  catalogRefresh: 'catalog:refresh',
+  settingsSetProviderDefault: 'settings:setProviderDefault',
+
+  mcpSignIn: 'mcp:signIn',
+  /** main -> renderer: an MCP sign-in page URL, in case the browser did not open. */
+  mcpProgress: 'mcp:progress',
 
   dispatchStart: 'dispatch:start',
   dispatchCancel: 'dispatch:cancel',
@@ -460,6 +519,13 @@ export interface RendererApi {
   signIn(provider: AccountProvider): Promise<AccountActionResult>;
   signOut(provider: AccountProvider): Promise<AccountActionResult>;
   onSignInProgress(cb: (p: AccountSignInProgress) => void): () => void;
+
+  /** Re-read every provider's model list without redoing the whole scan. */
+  refreshCatalog(): Promise<DiscoveryReport>;
+  setProviderDefault(providerId: string, value: ProviderDefault): Promise<AppSettings>;
+
+  mcpSignIn(owner: string, name: string): Promise<AccountActionResult>;
+  onMcpSignInProgress(cb: (p: McpSignInProgress) => void): () => void;
 
   startDispatch(req: DispatchRequest): Promise<{ ok: boolean; runId?: string; error?: string }>;
   cancelDispatch(cardId: string): Promise<{ ok: boolean }>;

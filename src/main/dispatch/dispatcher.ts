@@ -8,9 +8,11 @@ import type {
   Column,
   DiscoveredAgent,
   EndpointSettings,
+  ProviderDefault,
   RunEvent,
   RunUpdate,
 } from '@shared/types';
+import { resolveRunSettings } from '@shared/runSettings';
 import type { AdapterEvent, SecretReader } from '../agents/types.js';
 import { getAdapter } from '../agents/registry.js';
 
@@ -52,6 +54,8 @@ export interface DispatcherDeps {
   getBoard(): BoardState;
   getAgent(agentId: string): DiscoveredAgent | null;
   endpoints(): EndpointSettings;
+  /** Saved default model and effort per provider, applied to blank card fields. */
+  providerDefaults(): Record<string, ProviderDefault>;
   secrets: SecretReader;
   /** Push an update to the renderer. */
   publish(update: RunUpdate): void;
@@ -114,6 +118,11 @@ export class Dispatcher {
       return { ok: false, error: `No adapter is registered for agent "${agentId}".` };
     }
 
+    // Fill any blank provider, model or effort from the saved defaults. The card
+    // handed to the adapter carries the resolved values, so the run record shows
+    // exactly what was used rather than "default".
+    card = { ...card, config: { ...card.config, ...resolveRunSettings(card.config, this.deps.providerDefaults()) } };
+
     // Windows refuses to start a program in a folder that does not exist, and
     // reports it as the *program* not being found — a baffling message. Check
     // the folder first so the card says what is actually wrong. HTTP agents
@@ -140,6 +149,7 @@ export class Dispatcher {
       agentId,
       providerId: card.config.providerId,
       model: card.config.model,
+      effort: card.config.effort,
       status: 'queued',
       prompt: card.config.taskPrompt || card.title,
       output: '',

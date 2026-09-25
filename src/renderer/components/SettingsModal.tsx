@@ -4,11 +4,16 @@ import type {
   AccountStatus,
   AgentTestResult,
   AppSettings,
+  DiscoveredProvider,
   DiscoveryReport,
   EndpointSettings,
+  ProviderDefault,
   SecretKey,
 } from '@shared/types';
 import { CREDENTIALS } from '@shared/types';
+import { AGENT_DEFAULT_PROVIDER } from '@shared/runSettings';
+import ProviderPicker, { HermesDefaultPicker } from './ProviderPicker.js';
+import EnvironmentPanel from './EnvironmentPanel.js';
 
 interface Props {
   settings: AppSettings;
@@ -19,6 +24,45 @@ interface Props {
   onClearSecret: (key: SecretKey) => Promise<void>;
   onTestAgent: (agentId: string) => Promise<AgentTestResult>;
   onRefreshDiscovery: () => Promise<void>;
+  onRefreshCatalog: () => Promise<void>;
+  onSetProviderDefault: (providerId: string, value: ProviderDefault) => Promise<void>;
+}
+
+/** The catalogue provider each account's sign-in runs. */
+const ACCOUNT_PROVIDER_ID: Record<AccountProvider, string> = {
+  openai: 'openai',
+  anthropic: 'anthropic',
+};
+
+/** Re-reads every provider's model list; seconds, unlike a full rescan. */
+function ModelsBar({
+  discovery,
+  onRefresh,
+}: {
+  discovery: DiscoveryReport | null;
+  onRefresh: () => Promise<void>;
+}): React.JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const total = discovery?.providers.reduce((n, p) => n + p.models.length, 0) ?? 0;
+  return (
+    <div className="models-bar">
+      <span>
+        {total} models across {discovery?.providers.length ?? 0} providers
+        {discovery ? ` · updated ${new Date(discovery.scannedAt).toLocaleTimeString()}` : ''}
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await onRefresh();
+          setBusy(false);
+        }}
+      >
+        {busy ? 'Refreshing…' : 'Refresh model lists'}
+      </button>
+    </div>
+  );
 }
 
 type Tab = 'accounts' | 'connections' | 'credentials' | 'environment';
@@ -32,12 +76,19 @@ export default function SettingsModal({
   onClearSecret,
   onTestAgent,
   onRefreshDiscovery,
+  onRefreshCatalog,
+  onSetProviderDefault,
 }: Props): React.JSX.Element {
   const [tab, setTab] = useState<Tab>('accounts');
   const [endpoints, setEndpoints] = useState<EndpointSettings>(settings.endpoints);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [tests, setTests] = useState<Record<string, AgentTestResult | 'running'>>({});
   const [busy, setBusy] = useState(false);
+
+  const defaults = settings.providerDefaults ?? {};
+  const providerById = (id: string): DiscoveredProvider | undefined =>
+    discovery?.providers.find((p) => p.id === id);
+  const setDefault = (id: string) => (value: ProviderDefault) => void onSetProviderDefault(id, value);
 
   const runTest = async (agentId: string): Promise<void> => {
     setTests((t) => ({ ...t, [agentId]: 'running' }));
@@ -84,11 +135,21 @@ export default function SettingsModal({
         </div>
 
         <div className="panel-body">
-          {/* ------------------------------------------------ connections */}
-          {tab === 'accounts' ? <AccountsPanel /> : null}
+          {tab === 'accounts' ? (
+            <>
+              <ModelsBar discovery={discovery} onRefresh={onRefreshCatalog} />
+              <AccountsPanel
+                providerById={providerById}
+                defaults={defaults}
+                onSetDefault={(id, value) => void onSetProviderDefault(id, value)}
+              />
+            </>
+          ) : null}
 
+          {/* ------------------------------------------------ connections */}
           {tab === 'connections' ? (
             <>
+              <ModelsBar discovery={discovery} onRefresh={onRefreshCatalog} />
               <div className="field">
                 <label htmlFor="ep-ollama">Ollama base URL</label>
                 <input
@@ -143,6 +204,19 @@ export default function SettingsModal({
                               {result.ok ? '✔' : '✘'} {result.detail} ({result.durationMs} ms)
                             </div>
                           ) : null}
+                          {a.id === 'hermes' ? (
+                            <HermesDefaultPicker
+                              providers={discovery?.providers ?? []}
+                              value={defaults.hermes}
+                              onChange={setDefault('hermes')}
+                            />
+                          ) : AGENT_DEFAULT_PROVIDER[a.id] ? (
+                            <ProviderPicker
+                              provider={providerById(AGENT_DEFAULT_PROVIDER[a.id])}
+                              value={defaults[AGENT_DEFAULT_PROVIDER[a.id]]}
+                              onChange={setDefault(AGENT_DEFAULT_PROVIDER[a.id])}
+                            />
+                          ) : null}
                         </div>
                         <button
                           type="button"
@@ -175,7 +249,9 @@ export default function SettingsModal({
                 app passes in.
               </div>
 
-              {CREDENTIALS.map(({ key, label, usedBy, help }) => (
+              <ModelsBar discovery={discovery} onRefresh={onRefreshCatalog} />
+
+              {CREDENTIALS.map(({ key, label, usedBy, help, providerId }) => (
                 <div className="field" key={key}>
                   <label htmlFor={`sec-${key}`}>
                     {label} {settings.secretsPresent[key] ? '· set' : '· not set'}
@@ -198,6 +274,8 @@ export default function SettingsModal({
                         // Clear the draft immediately so the plaintext does not
                         // linger in renderer memory or in a React devtools tree.
                         setDrafts((d) => ({ ...d, [key]: '' }));
+                        // A new key can unlock a provider's model list.
+                        await onRefreshCatalog();
                       }}
                     >
                       Save
@@ -207,7 +285,10 @@ export default function SettingsModal({
                       className="danger"
                       style={{ flex: '0 0 auto' }}
                       disabled={!settings.secretsPresent[key]}
-                      onClick={() => void onClearSecret(key)}
+                      onClick={async () => {
+                        await onClearSecret(key);
+                        await onRefreshCatalog();
+                      }}
                     >
                       Clear
                     </button>
@@ -215,6 +296,11 @@ export default function SettingsModal({
                   <div className="hint">
                     <code className="inline">{key}</code> · used by {usedBy}. {help}
                   </div>
+                  <ProviderPicker
+                    provider={providerById(providerId)}
+                    value={defaults[providerId]}
+                    onChange={setDefault(providerId)}
+                  />
                 </div>
               ))}
 
@@ -227,83 +313,16 @@ export default function SettingsModal({
 
           {/* ------------------------------------------------ environment */}
           {tab === 'environment' ? (
-            <>
-              <div className="row" style={{ marginBottom: 12 }}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setBusy(true);
-                    await onRefreshDiscovery();
-                    setBusy(false);
-                  }}
-                  disabled={busy}
-                >
-                  {busy ? 'Rescanning…' : 'Rescan environment'}
-                </button>
-              </div>
-
-              {discovery ? (
-                <>
-                  <div className="hint" style={{ marginBottom: 10 }}>
-                    Scanned {new Date(discovery.scannedAt).toLocaleString()} on {discovery.platform}
-                  </div>
-
-                  {discovery.warnings.map((w, i) => (
-                    <div className="banner warn" key={i}>
-                      {w}
-                    </div>
-                  ))}
-
-                  <fieldset className="group">
-                    <legend>Counts</legend>
-                    <div className="status-list">
-                      <Count label="Agents" value={discovery.agents.length} />
-                      <Count
-                        label="Agents available"
-                        value={discovery.agents.filter((a) => a.availability === 'available').length}
-                      />
-                      <Count label="Providers" value={discovery.providers.length} />
-                      <Count
-                        label="Models"
-                        value={discovery.providers.reduce((n, p) => n + p.models.length, 0)}
-                      />
-                      <Count label="MCP servers" value={discovery.mcpServers.length} />
-                      <Count
-                        label="MCP connected"
-                        value={
-                          discovery.mcpServers.filter((s) => s.availability === 'available').length
-                        }
-                      />
-                      <Count label="Plugins" value={discovery.plugins.length} />
-                      <Count label="Skills" value={discovery.skills.length} />
-                      <Count label="Tools" value={discovery.tools.length} />
-                    </div>
-                  </fieldset>
-
-                  <fieldset className="group">
-                    <legend>MCP servers</legend>
-                    <div className="status-list">
-                      {discovery.mcpServers.map((s) => (
-                        <div className="status-row" key={s.id}>
-                          <span className={`dot ${s.availability}`} style={{ marginTop: 4 }} />
-                          <div className="sr-main">
-                            <div className="sr-name">{s.name}</div>
-                            <div className="sr-detail">
-                              {s.kind} · {s.target}
-                            </div>
-                            <div className="sr-detail">{s.statusDetail}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  <div className="hint">Board file: {settings.boardPath}</div>
-                </>
-              ) : (
-                <div className="empty-state">Discovery has not completed yet.</div>
-              )}
-            </>
+            <EnvironmentPanel
+              discovery={discovery}
+              boardPath={settings.boardPath}
+              busy={busy}
+              onRescan={async () => {
+                setBusy(true);
+                await onRefreshDiscovery();
+                setBusy(false);
+              }}
+            />
           ) : null}
         </div>
       </div>
@@ -311,16 +330,6 @@ export default function SettingsModal({
   );
 }
 
-function Count({ label, value }: { label: string; value: number }): React.JSX.Element {
-  return (
-    <div className="status-row">
-      <div className="sr-main">
-        <div className="sr-name">{label}</div>
-      </div>
-      <strong>{value}</strong>
-    </div>
-  );
-}
 
 /**
  * Account sign-in for the agents whose CLIs support it.
@@ -330,7 +339,15 @@ function Count({ label, value }: { label: string; value: number }): React.JSX.El
  * process forwards the sign-in address so it can be offered as a link in case
  * the browser did not open by itself.
  */
-function AccountsPanel(): React.JSX.Element {
+function AccountsPanel({
+  providerById,
+  defaults,
+  onSetDefault,
+}: {
+  providerById: (id: string) => DiscoveredProvider | undefined;
+  defaults: Record<string, ProviderDefault>;
+  onSetDefault: (providerId: string, value: ProviderDefault) => void;
+}): React.JSX.Element {
   const [accounts, setAccounts] = useState<AccountStatus[] | null>(null);
   const [busy, setBusy] = useState<Partial<Record<AccountProvider, 'in' | 'out'>>>({});
   const [links, setLinks] = useState<Partial<Record<AccountProvider, string>>>({});
@@ -403,6 +420,11 @@ function AccountsPanel(): React.JSX.Element {
                     {message.ok ? '✔' : '✘'} {message.text}
                   </div>
                 ) : null}
+                <ProviderPicker
+                  provider={providerById(ACCOUNT_PROVIDER_ID[a.provider])}
+                  value={defaults[ACCOUNT_PROVIDER_ID[a.provider]]}
+                  onChange={(value) => onSetDefault(ACCOUNT_PROVIDER_ID[a.provider], value)}
+                />
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button

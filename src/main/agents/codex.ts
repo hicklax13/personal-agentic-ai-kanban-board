@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Card } from '@shared/types';
+import { effortAccepted } from '@shared/runSettings';
 import type { AgentAdapter, CommandPlan, DispatchContext } from './types.js';
 import { buildPrompt, renderCommand } from './types.js';
 import { spawnStreaming } from './streaming.js';
@@ -49,6 +50,12 @@ export function buildCodexCommand(opts: CodexOptions): CommandPlan {
   args.push('--dangerously-bypass-approvals-and-sandbox');
 
   if (card.config.model) args.push('-m', card.config.model);
+  // `model_reasoning_effort` is the key Codex's own config.toml uses; `-c`
+  // overrides it for this run only. The value is quoted so it parses as a TOML
+  // string rather than relying on the CLI's raw-string fallback.
+  if (effortAccepted('codex', card.config.effort)) {
+    args.push('-c', `model_reasoning_effort="${card.config.effort}"`);
+  }
   if (opts.localProvider) args.push('--oss', '--local-provider', opts.localProvider);
 
   const cwd = card.config.workingDirectory || opts.workspaceRoot;

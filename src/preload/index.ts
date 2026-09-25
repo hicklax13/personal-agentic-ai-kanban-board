@@ -10,6 +10,8 @@ import type {
   DiscoveryReport,
   DispatchRequest,
   EndpointSettings,
+  McpSignInProgress,
+  ProviderDefault,
   RendererApi,
   RunUpdate,
   SecretKey,
@@ -54,6 +56,20 @@ const api: RendererApi = {
     ipcRenderer.on(IPC.accountsProgress, listener);
     return () => {
       ipcRenderer.removeListener(IPC.accountsProgress, listener);
+    };
+  },
+
+  refreshCatalog: () => ipcRenderer.invoke(IPC.catalogRefresh) as Promise<DiscoveryReport>,
+  setProviderDefault: (providerId: string, value: ProviderDefault) =>
+    ipcRenderer.invoke(IPC.settingsSetProviderDefault, providerId, value) as Promise<AppSettings>,
+
+  mcpSignIn: (owner: string, name: string) =>
+    ipcRenderer.invoke(IPC.mcpSignIn, owner, name) as Promise<AccountActionResult>,
+  onMcpSignInProgress: (cb) => {
+    const listener = (_e: unknown, progress: McpSignInProgress): void => cb(progress);
+    ipcRenderer.on(IPC.mcpProgress, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.mcpProgress, listener);
     };
   },
 

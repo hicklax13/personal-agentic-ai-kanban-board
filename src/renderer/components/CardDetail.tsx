@@ -5,10 +5,13 @@ import type {
   ChatSession,
   DiscoveryReport,
   Priority,
+  ProviderDefault,
 } from '@shared/types';
 import { PRIORITIES } from '@shared/types';
 import { latestRun } from '@shared/boardOps';
+import { AGENT_DEFAULT_PROVIDER, AGENT_EFFORTS, resolveRunSettings } from '@shared/runSettings';
 import MultiSelect, { type Option } from './MultiSelect.js';
+import { effortsFor } from './ProviderPicker.js';
 
 interface Props {
   card: Card;
@@ -17,6 +20,8 @@ interface Props {
   isRunning: boolean;
   /** Where agents run when this card sets no folder of its own. */
   workspaceRoot: string | null;
+  /** Saved per-provider defaults, shown as what a blank field will use. */
+  providerDefaults: Record<string, ProviderDefault>;
   onPatchCard: (patch: Partial<Omit<Card, 'id' | 'config' | 'runs'>>) => void;
   onPatchConfig: (patch: Partial<CardAgentConfig>) => void;
   onDelete: () => void;
@@ -41,6 +46,7 @@ export default function CardDetail({
   chatSessions,
   isRunning,
   workspaceRoot,
+  providerDefaults,
   onPatchCard,
   onPatchConfig,
   onDelete,
@@ -67,6 +73,17 @@ export default function CardDetail({
     return providers.flatMap((p) => p.models);
   }, [providers, card.config.providerId]);
 
+  // What blank provider, model and effort fields will turn into at dispatch —
+  // the same rule the main process applies, so the hint is never wrong.
+  const fallback = resolveRunSettings({ ...card.config, model: null, effort: null }, providerDefaults);
+  const agentId = card.config.agentId ?? '';
+  const activeProvider = providers.find(
+    (p) => p.id === (card.config.providerId ?? fallback.providerId ?? AGENT_DEFAULT_PROVIDER[agentId]),
+  );
+  const effortOptions = activeProvider
+    ? effortsFor(activeProvider, card.config.model ?? fallback.model)
+    : (AGENT_EFFORTS[agentId] ?? []);
+
   const toolOptions: Option[] = useMemo(() => {
     if (!discovery) return [];
     const forAgent = card.config.agentId
@@ -77,14 +94,17 @@ export default function CardDetail({
 
   const mcpOptions: Option[] = useMemo(
     () =>
-      (discovery?.mcpServers ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: `${s.availability} — ${s.statusDetail}`,
-        disabled: s.availability === 'unavailable',
-        disabledReason: s.statusDetail,
-      })),
-    [discovery],
+      (discovery?.mcpServers ?? [])
+        // Each agent can only reach the servers in its own configuration.
+        .filter((s) => !card.config.agentId || s.owner === card.config.agentId)
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          description: `${s.ownerName} · ${s.availability} — ${s.statusDetail}`,
+          disabled: s.availability === 'unavailable',
+          disabledReason: s.statusDetail,
+        })),
+    [discovery, card.config.agentId],
   );
 
   const pluginOptions: Option[] = useMemo(
@@ -219,6 +239,7 @@ export default function CardDetail({
                   agentId: e.target.value || null,
                   providerId: null,
                   model: null,
+                  effort: null,
                   allowedTools: [],
                 })
               }
@@ -267,7 +288,11 @@ export default function CardDetail({
               id="card-model"
               list="card-model-list"
               value={card.config.model ?? ''}
-              placeholder="(agent default) — pick from the list or type any id"
+              placeholder={
+                fallback.model
+                  ? `Default: ${fallback.model} — pick from the list or type any id`
+                  : '(agent default) — pick from the list or type any id'
+              }
               onChange={(e) => onPatchConfig({ model: e.target.value || null })}
             />
             <datalist id="card-model-list">
@@ -278,9 +303,33 @@ export default function CardDetail({
               ))}
             </datalist>
             <div className="hint">
-              Free text is allowed on purpose: no CLI here can list every model it accepts, so an
-              incomplete catalogue must never block a valid choice.
+              {models.length} models available. Free text is allowed too, so a model missing from a
+              list can still be used.
             </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="card-effort">{activeProvider?.effortLabel ?? 'Effort'}</label>
+            <select
+              id="card-effort"
+              value={card.config.effort ?? ''}
+              disabled={effortOptions.length === 0}
+              onChange={(e) => onPatchConfig({ effort: e.target.value || null })}
+            >
+              <option value="">
+                {effortOptions.length === 0
+                  ? 'Not adjustable for this agent'
+                  : fallback.effort
+                    ? `Default: ${fallback.effort}`
+                    : 'Agent default'}
+              </option>
+              {effortOptions.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+            <div className="hint">Defaults for each provider are set in Settings.</div>
           </div>
         </fieldset>
 

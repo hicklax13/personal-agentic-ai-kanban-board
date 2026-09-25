@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import type { DiscoveredModel, DiscoveredProvider } from '@shared/types';
+import { AGENT_EFFORTS } from '@shared/runSettings';
 
 /**
  * Model discovery, in order of trust:
@@ -47,6 +48,10 @@ export function parseOllamaTags(raw: unknown): DiscoveredModel[] {
       name: m.name as string,
       contextLength: m.details?.context_length ?? null,
       capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
+      // Ollama's /api/chat `think` switch only does anything on models that
+      // report the "thinking" capability, so only those get the choice.
+      efforts:
+        Array.isArray(m.capabilities) && m.capabilities.includes('thinking') ? AGENT_EFFORTS.ollama : [],
     }));
 }
 
@@ -66,6 +71,9 @@ export async function discoverOllama(baseUrl: string): Promise<DiscoveredProvide
           : `Reachable at ${base} but no models are pulled. Run: ollama pull <model>`,
       models,
       live: true,
+      efforts: models.some((m) => (m.efforts ?? []).length > 0) ? AGENT_EFFORTS.ollama : [],
+      effortLabel: 'Thinking',
+      effortNote: 'Only models that support thinking use this.',
     };
   } catch (err) {
     return {
@@ -76,6 +84,9 @@ export async function discoverOllama(baseUrl: string): Promise<DiscoveredProvide
       statusDetail: `Not reachable at ${base}: ${err instanceof Error ? err.message : String(err)}`,
       models: [],
       live: true,
+      efforts: [],
+      effortLabel: 'Thinking',
+      effortNote: null,
     };
   }
 }
@@ -111,6 +122,9 @@ export async function discoverLmStudio(
       statusDetail: `${models.length} model(s) available at ${base}`,
       models,
       live: true,
+      efforts: AGENT_EFFORTS.lmstudio,
+      effortLabel: 'Effort',
+      effortNote: 'LM Studio has no effort setting this app can pass.',
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -127,6 +141,9 @@ export async function discoverLmStudio(
         : `Not reachable at ${base}: ${message}`,
       models: [],
       live: true,
+      efforts: AGENT_EFFORTS.lmstudio,
+      effortLabel: 'Effort',
+      effortNote: 'LM Studio has no effort setting this app can pass.',
     };
   }
 }
@@ -351,6 +368,9 @@ export function hermesProviders(summary: HermesConfigSummary): DiscoveredProvide
         capabilities: [],
       })),
       live: false,
+      efforts: AGENT_EFFORTS.hermes,
+      effortLabel: 'Reasoning effort',
+      effortNote: null,
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 }

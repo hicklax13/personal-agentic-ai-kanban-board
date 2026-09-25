@@ -131,6 +131,7 @@ export function defaultConfig(overrides: Partial<CardAgentConfig> = {}): CardAge
     agentId: null,
     providerId: null,
     model: null,
+    effort: null,
     allowedTools: [],
     allowedMcpServers: [],
     allowedPlugins: [],

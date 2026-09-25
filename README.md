@@ -48,6 +48,7 @@ alone:
 | Assigned agent | Which discovered agent runs this card |
 | Model provider | Narrows the model list |
 | Model | Pick from the discovered list, or type any id |
+| Effort | Reasoning effort, limited to the levels the agent (and model) accept |
 | Tools | Which tools the agent may use |
 | MCP servers | Which MCP servers the agent may reach |
 | Plugins | Which plugins are active |
@@ -75,7 +76,7 @@ run at any time.
 | Hermes Agent | `hermes -z` | no (one-shot returns the final answer) |
 | Ollama | `POST /api/chat` | yes |
 | LM Studio | `POST /v1/chat/completions` | yes |
-| ChatGPT Desktop | **not connected** — no local API exists | — |
+
 
 The board discovers whichever of these are present. Anything missing appears in the picker
 with a red dot and an explanation, rather than being silently hidden.
@@ -84,7 +85,19 @@ with a red dot and an explanation, rather than being silently hidden.
 
 ## Settings
 
-Open **Settings** in the top right.
+Open **Settings** in the top right. Every account, connection and API-key provider has a
+**Model** and **Effort** picker listing everything that provider offers. The choice becomes the
+default for cards that leave those fields blank; a card's own choice always wins.
+
+| Where models come from | How |
+| --- | --- |
+| Codex (ChatGPT sign-in) | `codex debug models`, including each model's own effort levels |
+| Claude Code | Aliases, plus Anthropic's live model list when a key is saved |
+| API-key providers | Each provider's own live "list models" endpoint, called with your saved key |
+| Ollama, LM Studio | The local server's live model list |
+
+Effort levels come from each agent's own CLI help: Claude Code `--effort`, Codex
+`model_reasoning_effort` (per model), Hermes `--reasoning`, and Ollama's `think` switch.
 
 - **Connections** — set the Ollama and LM Studio URLs, and press **Test** on any agent to
   perform a real round-trip. A version check only proves a binary exists; Test is what proves
@@ -113,7 +126,12 @@ Open **Settings** in the top right.
   Each name is the environment variable the receiving agent reads; the Hermes names come from
   Hermes's own provider table. Hermes loads its own `.env` over anything passed in, so if
   Hermes already holds a key for a provider, Hermes uses its own.
-- **Environment** — what the last scan found, and any warnings.
+- **Environment** — what the last scan found. Click any count (agents, providers, models, MCP
+  servers, plugins, skills, tools) to open the full list, with a filter for long ones. MCP
+  servers are grouped by the agent that owns them — Claude Code, Codex and Hermes each keep
+  their own list — and every server that uses OAuth has a **Sign in** button. It runs that
+  agent's own login (`claude mcp login`, `codex mcp login`, `hermes mcp login`), which opens
+  your default browser at the service's consent page; the agent stores the result.
 
 ---
 

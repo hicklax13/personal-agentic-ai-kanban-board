@@ -1,26 +1,15 @@
 import { promises as fs } from 'node:fs';
-import type {
-  DiscoveredProvider,
-  DiscoveryReport,
-  EndpointSettings,
-} from '@shared/types';
+import type { DiscoveredAgent, DiscoveryReport, EndpointSettings } from '@shared/types';
 import {
   CLAUDE_PLUGIN_CACHE_DIR,
   CLAUDE_SETTINGS_PATH,
   CLAUDE_SKILLS_DIR,
-  CODEX_CONFIG_PATH,
   discoverAgents,
   findHermesConfig,
 } from './agents.js';
 import { discoverMcpServers } from './mcp.js';
-import {
-  claudeModels,
-  discoverCodexModels,
-  discoverLmStudio,
-  discoverOllama,
-  hermesProviders,
-  parseHermesConfig,
-} from './models.js';
+import { discoverCodexMcp, parseHermesMcpServers } from './mcpAgents.js';
+import { buildProviders, type SecretGetter } from './catalog.js';
 import { discoverPlugins } from './plugins.js';
 import { discoverSkills } from './skills.js';
 import {
@@ -62,113 +51,102 @@ async function discoverHermesToolsets(
 
 export interface DiscoveryInput {
   endpoints: EndpointSettings;
-  lmStudioApiKey: string | null;
+  /** Reads a stored credential; used to list each provider's models live. */
+  getSecret: SecretGetter;
   cwd: string;
+}
+
+async function hermesConfigPath(agents: DiscoveredAgent[]): Promise<string | null> {
+  const hermes = agents.find((a) => a.id === 'hermes');
+  return hermes ? findHermesConfig(hermes) : null;
+}
+
+/**
+ * Re-read every provider's model list and effort levels, and nothing else.
+ *
+ * A full scan health-checks every MCP server and can take minutes; this takes
+ * seconds, which is what saving a new API key should cost.
+ */
+export async function refreshProviders(
+  report: DiscoveryReport,
+  input: DiscoveryInput,
+): Promise<DiscoveryReport> {
+  const { providers, warnings } = await buildProviders({
+    endpoints: input.endpoints,
+    getSecret: input.getSecret,
+    agents: report.agents,
+    hermesConfigPath: await hermesConfigPath(report.agents),
+  });
+  return {
+    ...report,
+    providers,
+    // Replace only provider warnings; keep the ones the full scan produced.
+    warnings: [...report.warnings.filter((w) => !w.startsWith('Hermes is installed but')), ...warnings],
+    scannedAt: new Date().toISOString(),
+  };
 }
 
 /**
  * Scan the machine and produce the single source of truth the UI renders from.
  *
- * The expensive steps (agent probes, MCP health check, skill tree walk) are
- * kicked off together and awaited once, so a refresh costs roughly the slowest
- * step rather than the sum of them. The MCP health check is the long pole: it
- * dials every configured server.
+ * The expensive steps (agent probes, MCP health check, skill tree walk, model
+ * lists) are kicked off together and awaited once, so a refresh costs roughly
+ * the slowest step rather than the sum of them. The MCP health check is the long
+ * pole: it dials every configured server.
  */
 export async function runDiscovery(input: DiscoveryInput): Promise<DiscoveryReport> {
   const warnings: string[] = [];
 
+  const lmStudioApiKey = await input.getSecret('LM_STUDIO_API_KEY');
   const agents = await discoverAgents({
     ollamaBaseUrl: input.endpoints.ollamaBaseUrl,
     lmStudioBaseUrl: input.endpoints.lmStudioBaseUrl,
-    lmStudioApiKey: input.lmStudioApiKey,
+    lmStudioApiKey,
   });
 
   const claudeAgent = agents.find((a) => a.id === 'claude-code');
   const codexAgent = agents.find((a) => a.id === 'codex');
   const hermesAgent = agents.find((a) => a.id === 'hermes');
+  const hermesCfgPath = await hermesConfigPath(agents);
 
-  const [
-    mcpResult,
-    skills,
-    plugins,
-    ollamaProvider,
-    lmStudioProvider,
-    codexModels,
-    hermesCfgPath,
-    hermesToolsetResult,
-  ] = await Promise.all([
+  const [claudeMcp, codexMcp, hermesYaml, skills, plugins, catalog, hermesToolsetResult] =
+    await Promise.all([
       discoverMcpServers(claudeAgent?.binaryPath ?? null, input.cwd),
+      discoverCodexMcp(codexAgent?.binaryPath ?? null),
+      hermesCfgPath ? fs.readFile(hermesCfgPath, 'utf8').catch(() => null) : Promise.resolve(null),
       discoverSkills([
         { path: CLAUDE_SKILLS_DIR, source: 'user', maxDepth: 3 },
         { path: CLAUDE_PLUGIN_CACHE_DIR, source: 'plugin', maxDepth: 7 },
       ]),
       discoverPlugins(CLAUDE_SETTINGS_PATH),
-      discoverOllama(input.endpoints.ollamaBaseUrl),
-      discoverLmStudio(input.endpoints.lmStudioBaseUrl, input.lmStudioApiKey),
-      discoverCodexModels(CODEX_CONFIG_PATH),
-      hermesAgent ? findHermesConfig(hermesAgent) : Promise.resolve(null),
+      buildProviders({
+        endpoints: input.endpoints,
+        getSecret: input.getSecret,
+        agents,
+        hermesConfigPath: hermesCfgPath,
+      }),
       discoverHermesToolsets(
         hermesAgent?.availability === 'available' ? hermesAgent.binaryPath : null,
       ),
     ]);
 
-  if (mcpResult.warning) warnings.push(mcpResult.warning);
+  if (claudeMcp.warning) warnings.push(claudeMcp.warning);
+  if (codexMcp.warning) warnings.push(codexMcp.warning);
   if (hermesToolsetResult.warning) warnings.push(hermesToolsetResult.warning);
+  warnings.push(...catalog.warnings);
 
-  // --- providers ---------------------------------------------------------
-  const providers: DiscoveredProvider[] = [];
-
-  providers.push({
-    id: 'anthropic',
-    name: 'Anthropic (via Claude Code)',
-    agentIds: ['claude-code'],
-    availability: claudeAgent?.availability ?? 'unavailable',
-    statusDetail:
-      claudeAgent?.availability === 'available'
-        ? 'Model is selected with `claude --model`. Aliases always resolve to the current release.'
-        : (claudeAgent?.statusDetail ?? 'Claude Code CLI not found.'),
-    models: claudeModels(),
-    live: false,
-  });
-
-  providers.push({
-    id: 'openai',
-    name: 'OpenAI (via Codex)',
-    agentIds: ['codex'],
-    availability: codexAgent?.availability ?? 'unavailable',
-    statusDetail:
-      codexModels.length > 0
-        ? `Default model read from ${CODEX_CONFIG_PATH}. Any other model id the CLI accepts can be typed in.`
-        : `No model found in ${CODEX_CONFIG_PATH}; type a model id directly.`,
-    models: codexModels,
-    live: false,
-  });
-
-  providers.push(ollamaProvider, lmStudioProvider);
-
-  if (hermesCfgPath) {
-    try {
-      const yaml = await fs.readFile(hermesCfgPath, 'utf8');
-      providers.push(...hermesProviders(parseHermesConfig(yaml)));
-    } catch (err) {
-      warnings.push(
-        `Hermes config at ${hermesCfgPath} could not be read: ${
-          err instanceof Error ? err.message : String(err)
-        }. Type a model id directly instead.`,
-      );
-    }
-  } else if (hermesAgent?.availability === 'available') {
-    warnings.push(
-      'Hermes is installed but its config.yaml was not found, so its model list is empty. ' +
-        'Leave the model blank to use the Hermes default, or type a model id directly.',
-    );
-  }
+  const hermesMcp = hermesYaml ? parseHermesMcpServers(hermesYaml) : [];
+  const mcpServers = [...claudeMcp.servers, ...codexMcp.servers, ...hermesMcp];
 
   // --- tools -------------------------------------------------------------
+  // `mcp__<server>` tool names are a Claude Code convention, so only Claude's
+  // own connected servers become selectable tools.
   const tools = [
     ...builtinTools(),
     ...hermesTools(hermesToolsetResult.toolsets),
-    ...mcpTools(mcpResult.servers.filter((s) => s.availability === 'available').map((s) => s.id)),
+    ...mcpTools(
+      claudeMcp.servers.filter((s) => s.availability === 'available').map((s) => s.id),
+    ),
   ];
 
   if (skills.length === 0) {
@@ -179,8 +157,8 @@ export async function runDiscovery(input: DiscoveryInput): Promise<DiscoveryRepo
     scannedAt: new Date().toISOString(),
     platform: `${process.platform} ${process.arch}`,
     agents,
-    providers,
-    mcpServers: mcpResult.servers,
+    providers: catalog.providers,
+    mcpServers,
     skills,
     plugins,
     tools,

@@ -1,4 +1,5 @@
 import type { Card } from '@shared/types';
+import { effortAccepted } from '@shared/runSettings';
 import type { AgentAdapter, CommandPlan, DispatchContext } from './types.js';
 import { buildPrompt, renderCommand } from './types.js';
 import { spawnStreaming } from './streaming.js';
@@ -34,6 +35,7 @@ export function buildHermesCommand(opts: HermesOptions): CommandPlan {
   args.push('--yolo', '--accept-hooks');
 
   if (card.config.model) args.push('-m', card.config.model);
+  if (effortAccepted('hermes', card.config.effort)) args.push('--reasoning', card.config.effort);
 
   // Provider ids are stored namespaced (`hermes:deepseek`) so they cannot
   // collide with the top-level providers; strip the prefix before passing on.

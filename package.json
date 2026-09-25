@@ -1,0 +1,36 @@
+{
+  "name": "agent-kanban",
+  "version": "1.0.0",
+  "description": "Desktop Kanban board that dispatches task cards to locally-installed coding agents (Claude Code, Codex, Hermes, Ollama).",
+  "private": true,
+  "main": "./out/main/index.js",
+  "author": "hicklax13",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "launch": "electron-vite build && electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.4.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1"
+  }
+}

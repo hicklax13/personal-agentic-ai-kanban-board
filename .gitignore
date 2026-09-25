@@ -1,0 +1,22 @@
+node_modules/
+out/
+data/
+dist/
+release/
+*.log
+.DS_Store
+.vite/
+*.tsbuildinfo
+
+# Local-only: a scan of the owner's own machine, not for publishing.
+ENGINEERING_REPORT.md
+
+# State that coding-agent tools write into whatever folder they run in.
+.omc/
+.claude/settings.local.json
+
+# Secrets must never be committed.
+.env
+.env.*
+*.pem
+*.key

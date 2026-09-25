@@ -1,0 +1,256 @@
+{
+  "title": "Choose the visual world for Agent Kanban",
+  "question": "One direction is fully worked out below. Keep it, take an alternate, or re-roll for a fresh hand.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Transit Map",
+      "kicker": "THE ROLL",
+      "lineage": "Vignelli's 1972 subway diagram, Unimark signage, Beck's Underground map",
+      "thesis": "Every task rides a line: the eight columns are stations, and each agent runs its own lettered, colored route.",
+      "palette": [
+        "#151719",
+        "#F1F2EF",
+        "#E03A2F",
+        "#1F5FD6",
+        "#0F8F4E",
+        "#F6C21A",
+        "#9B4DCA"
+      ],
+      "materials": [
+        "enamel signage bands",
+        "lettered route bullets",
+        "45-degree line diagram"
+      ],
+      "viewport": "A black signage band on top; one thick route line strings the eight stations with live counts; cards hang below as service tiles with agent route bullets, next stops and departure countdowns.",
+      "risk": "Turns into a transit costume if the line stops carrying real state; the light ground also needs its night-service twin for late hours.",
+      "raised": [
+        {
+          "from": "challenger-industrial-quote",
+          "raise": "Blocked and unavailable things wear a diagonal hatch, so state never rides on color alone."
+        },
+        {
+          "from": "challenger-star-atlas",
+          "raise": "Priority reads as a fixed size ramp on the route bullet, urgent largest, not only as a color."
+        },
+        {
+          "from": "challenger-darkroom",
+          "raise": "Every automatic move is shown before it happens: each card names its next stop and when it leaves."
+        },
+        {
+          "from": "challenger-hypercard",
+          "raise": "Browse and edit are one object: title, assignee and priority edit in place on the board."
+        },
+        {
+          "from": "challenger-gravity-rain",
+          "raise": "On a small screen one field stays dominant: the live stations take the view and the rest fold to markers."
+        },
+        {
+          "from": "challenger-elbow-panel",
+          "raise": "The frame is the grid: the route line that links the stations also aligns the whole board."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "Flight Strip Bay",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "air traffic control flight progress strips and radar scopes",
+      "thesis": "Every run is a printed flight strip slid from bay to bay, so a whole sky of agents reads in one sweep.",
+      "palette": [
+        "#0E1512",
+        "#E6E9E2",
+        "#3D7BD9",
+        "#E8A33D",
+        "#E04B3A",
+        "#37C77A"
+      ],
+      "materials": [
+        "printed flight strips in racks",
+        "radar scope phosphor"
+      ],
+      "viewport": "A dark scope room: eight strip bays side by side, each run a strip with callsign, route and times, and a slim radar ring marking every running agent.",
+      "risk": "Familiar: it sits close to the dark control-room look most agent dashboards already ship.",
+      "comp": ".impeccable/mocks/decision/model-pick.png"
+    },
+    {
+      "id": "challenger-industrial-quote",
+      "label": "Industrial Quote Grammar",
+      "verdict": "declined",
+      "lineage": "industrial streetwear: quoted caps, zip-tie tags, hazard stripes",
+      "thesis": "Every zone named literally in quotes, the active thing tagged in safety orange.",
+      "palette": [
+        "#FFFFFF",
+        "#0A0A0A",
+        "#E6E6E6",
+        "#FF5A00"
+      ],
+      "materials": [
+        "cotton twill and ripstop",
+        "hazard stripes",
+        "zip-tie tags"
+      ],
+      "viewport": "Stenciled crate-label cards in quoted caps, BLOCKED under a hazard stripe, the running card tagged orange.",
+      "case": "Fuses cleanly (hazard = blocked, tag = active) but the audience is not streetwear, and quoted condensed caps tire the eye over a long day.",
+      "risk": "Shouts at a surface that is open all day.",
+      "kept": "State encoded in pattern: blocked and unavailable things wear a diagonal hatch.",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar.webp"
+    },
+    {
+      "id": "challenger-star-atlas",
+      "label": "Star Atlas Chart",
+      "verdict": "declined",
+      "lineage": "celestial star atlases and night-vision field charts",
+      "thesis": "Tasks plotted as stars by importance, parent chains drawn as constellations.",
+      "palette": [
+        "#0A1021",
+        "#16233D",
+        "#FF4D2E",
+        "#F2F2E9"
+      ],
+      "materials": [
+        "matte ink chart",
+        "chalk grain",
+        "red-flashlight annotation"
+      ],
+      "viewport": "A navy chart where each task is a star sized by priority and linked tasks form constellations.",
+      "case": "Fits the late-night sessions, but a star field does not show how work flows from idea to done.",
+      "risk": "Beautiful at a glance, slow to act on.",
+      "kept": "Importance as a fixed magnitude ramp: priority reads as bullet size.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-star-atlas-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/notation-diagram-systems-star-atlas.webp"
+    },
+    {
+      "id": "challenger-darkroom",
+      "label": "Darkroom Safelight",
+      "verdict": "declined",
+      "lineage": "photographic darkrooms under amber safelight",
+      "thesis": "Work moves through fixed stations in order, each step timed and final.",
+      "palette": [
+        "#C8641E",
+        "#2A1A10",
+        "#9A9A96",
+        "#F4F1EA"
+      ],
+      "materials": [
+        "amber safelight",
+        "developer trays",
+        "test strips"
+      ],
+      "viewport": "Stations from compose to dry under amber light, each run developing into view.",
+      "case": "Stations in order map well, but an amber monochrome drowns status colors and strains reading.",
+      "risk": "Everything reads the same hue.",
+      "kept": "Commit points are marked: every card shows its next stop before it moves.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-darkroom-safelight-bay-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-darkroom-safelight-bay.webp"
+    },
+    {
+      "id": "challenger-hypercard",
+      "label": "HyperCard Stack",
+      "verdict": "declined",
+      "lineage": "HyperCard shoebox stacks",
+      "thesis": "Black-and-white cards that you read and edit in the same place.",
+      "palette": [
+        "#000000",
+        "#FFFFFF",
+        "#8C8C8C"
+      ],
+      "materials": [
+        "one-bit dither",
+        "painted buttons"
+      ],
+      "viewport": "A stack of one-bit cards linked by hand-drawn buttons.",
+      "case": "Nostalgic for developers, but one-bit black and white cannot show status at a glance.",
+      "risk": "No color means no status.",
+      "kept": "Browse and edit are one object: edit cards in place on the board.",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-hypercard-stack-shoebox-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/medium-native-hypercard-stack-shoebox.webp"
+    },
+    {
+      "id": "challenger-gravity-rain",
+      "label": "Gravity-Rain Garden",
+      "verdict": "declined",
+      "lineage": "surreal impossible-physics gardens",
+      "thesis": "Tasks fall like colored rain toward the agent that pulls them.",
+      "palette": [
+        "#56655C",
+        "#3E7DE0",
+        "#D8453C",
+        "#121212"
+      ],
+      "materials": [
+        "painted clouds",
+        "vector-field rain"
+      ],
+      "viewport": "A dusk garden where each agent is a cloud and tasks rain toward it.",
+      "case": "Memorable, but neither the owner's world nor a clear way to operate a queue.",
+      "risk": "Art first, task second.",
+      "kept": "One field stays dominant on small screens.",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-gravity-rain-garden-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-gravity-rain-garden.webp"
+    },
+    {
+      "id": "challenger-elbow-panel",
+      "label": "Starship Elbow Panel",
+      "verdict": "declined",
+      "lineage": "sci-fi starship console wall panels",
+      "thesis": "The whole app framed by sweeping pastel elbows on black glass.",
+      "palette": [
+        "#000000",
+        "#C9A0DC",
+        "#F4A582",
+        "#F2C14E",
+        "#8FA3E6"
+      ],
+      "materials": [
+        "flat pastel blocks",
+        "black glass"
+      ],
+      "viewport": "Pastel elbows frame the board; sections are color banks; numeric codes label every button.",
+      "case": "Fun for a sci-fi fan, but numeric-code labels fail the any-skill-level test.",
+      "risk": "Reads as a fan tribute.",
+      "kept": "The frame is the grid: one structural line aligns everything.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-elbow-panel-console-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/pop-culture-shelf-elbow-panel-console.webp"
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A dark, fast developer board in the Linear and Raycast mold, executed impeccably.",
+    "palette": [
+      "#0E0F12",
+      "#1A1C21",
+      "#7C6CF2",
+      "#E6E7EB"
+    ],
+    "materials": [
+      "flat dark surfaces",
+      "hairline borders"
+    ],
+    "viewport": "A dark sidebar, eight compact columns of rounded cards, and a command palette.",
+    "risk": "Indistinguishable from the tools it sits beside, by design.",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  },
+  "steer": true,
+  "seed": {
+    "key": "9c97b18a",
+    "scope": "direction",
+    "mode": "operate",
+    "source": "api",
+    "approvedPool": "c3b204a1eed6",
+    "outcome": "Transit Map (candidate 5 of 7) assigned; the owner then pinned their crest world, which carries the Transit Map topology."
+  }
+}

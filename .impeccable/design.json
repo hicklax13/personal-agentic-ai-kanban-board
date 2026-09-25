@@ -1,0 +1,976 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T10:45:06.232Z",
+  "title": "Design System: Agent Kanban",
+  "extensions": {
+    "colorMeta": {
+      "field": {
+        "role": "neutral",
+        "displayName": "Sable Field",
+        "canonical": "#070708",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(12.9% 0.003 286.0)"
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Inkwell",
+        "canonical": "#0d0e10",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(16.4% 0.005 264.4)"
+      },
+      "steel": {
+        "role": "neutral",
+        "displayName": "Blackened Steel",
+        "canonical": "#131417",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(19.1% 0.006 271.1)"
+      },
+      "steel-2": {
+        "role": "neutral",
+        "displayName": "Steel Plate",
+        "canonical": "#181a1e",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(21.7% 0.008 264.4)"
+      },
+      "steel-3": {
+        "role": "neutral",
+        "displayName": "Raised Steel",
+        "canonical": "#202328",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(25.5% 0.010 260.7)"
+      },
+      "steel-4": {
+        "role": "neutral",
+        "displayName": "Worn Steel",
+        "canonical": "#2a2e34",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(30.0% 0.012 258.4)"
+      },
+      "engrave": {
+        "role": "neutral",
+        "displayName": "Engraved Line",
+        "canonical": "#2b2f35",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(30.4% 0.012 258.4)"
+      },
+      "engrave-2": {
+        "role": "neutral",
+        "displayName": "Deep Engraving",
+        "canonical": "#3b4047",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(36.9% 0.014 256.8)"
+      },
+      "engrave-hover": {
+        "role": "neutral",
+        "displayName": "Burnished Edge",
+        "canonical": "#4d535b",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(44.0% 0.015 255.6)"
+      },
+      "field-edge": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "#62686f",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(51.5% 0.013 252.2)"
+      },
+      "argent-bright": {
+        "role": "secondary",
+        "displayName": "Polished Argent",
+        "canonical": "#eef0f2",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(95.4% 0.003 247.9)"
+      },
+      "argent": {
+        "role": "secondary",
+        "displayName": "Argent",
+        "canonical": "#c9ced4",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(84.9% 0.010 252.8)"
+      },
+      "argent-edge": {
+        "role": "secondary",
+        "displayName": "Silver Rule",
+        "canonical": "#aeb4bb",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(76.7% 0.012 252.1)"
+      },
+      "argent-dim": {
+        "role": "secondary",
+        "displayName": "Pewter",
+        "canonical": "#9aa1a9",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(70.6% 0.014 251.6)"
+      },
+      "argent-faint": {
+        "role": "secondary",
+        "displayName": "Tarnished Silver",
+        "canonical": "#858c94",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ],
+        "oklch": "oklch(63.7% 0.015 251.6)"
+      },
+      "argent-wash": {
+        "role": "secondary",
+        "displayName": "Silver Wash",
+        "canonical": "rgba(201, 206, 212, 0.1)",
+        "tonalRamp": [
+          "#070708",
+          "#131417",
+          "#202328",
+          "#3b4047",
+          "#858c94",
+          "#aeb4bb",
+          "#c9ced4",
+          "#eef0f2"
+        ]
+      },
+      "or": {
+        "role": "primary",
+        "displayName": "Heraldic Or",
+        "canonical": "#c9a24a",
+        "tonalRamp": [
+          "#110a00",
+          "#302100",
+          "#523c00",
+          "#7a5b00",
+          "#9f7a19",
+          "#c69f46",
+          "#eac26a",
+          "#ffedc6"
+        ],
+        "oklch": "oklch(73.1% 0.115 85.2)"
+      },
+      "or-bright": {
+        "role": "primary",
+        "displayName": "Bright Or",
+        "canonical": "#e8c872",
+        "tonalRamp": [
+          "#100a00",
+          "#2e2200",
+          "#503d00",
+          "#775d00",
+          "#9b7c1f",
+          "#c0a14a",
+          "#e4c46e",
+          "#ffedbf"
+        ],
+        "oklch": "oklch(84.2% 0.112 89.5)"
+      },
+      "or-pale": {
+        "role": "primary",
+        "displayName": "Pale Gilt",
+        "canonical": "#f0d68a",
+        "tonalRamp": [
+          "#100a00",
+          "#2e2300",
+          "#4f3e00",
+          "#755d02",
+          "#967e31",
+          "#bca257",
+          "#dfc57a",
+          "#ffeebc"
+        ],
+        "oklch": "oklch(88.1% 0.100 91.3)"
+      },
+      "or-deep": {
+        "role": "primary",
+        "displayName": "Old Gold",
+        "canonical": "#8c6b22",
+        "tonalRamp": [
+          "#120a00",
+          "#302100",
+          "#533b00",
+          "#7b5a08",
+          "#9c7b34",
+          "#c29f5a",
+          "#e6c27c",
+          "#ffecc9"
+        ],
+        "oklch": "oklch(54.7% 0.098 83.4)"
+      },
+      "or-ink": {
+        "role": "primary",
+        "displayName": "Gilder's Umber",
+        "canonical": "#241a05",
+        "tonalRamp": [
+          "#110a00",
+          "#2d220d",
+          "#493e28",
+          "#6b5f48",
+          "#8b7f67",
+          "#b0a38a",
+          "#d3c6ac",
+          "#fbedd2"
+        ],
+        "oklch": "oklch(22.5% 0.038 84.0)"
+      },
+      "gules": {
+        "role": "tertiary",
+        "displayName": "Gules",
+        "canonical": "#a8222b",
+        "tonalRamp": [
+          "#1f0001",
+          "#4b0008",
+          "#7c0014",
+          "#ac262e",
+          "#d24c4d",
+          "#fd7370",
+          "#ffafaa",
+          "#ffe8e7"
+        ],
+        "oklch": "oklch(47.9% 0.169 23.4)"
+      },
+      "gules-text": {
+        "role": "tertiary",
+        "displayName": "Gules Tint",
+        "canonical": "#f28b90",
+        "tonalRamp": [
+          "#1f0003",
+          "#4a0010",
+          "#741726",
+          "#9b3d46",
+          "#bf5e64",
+          "#e88288",
+          "#ffaeb1",
+          "#ffe8e8"
+        ],
+        "oklch": "oklch(74.8% 0.125 17.4)"
+      },
+      "gules-wash": {
+        "role": "tertiary",
+        "displayName": "Gules Wash",
+        "canonical": "rgba(168, 34, 43, 0.16)",
+        "tonalRamp": [
+          "#1f0001",
+          "#4b0008",
+          "#7c0014",
+          "#ac262e",
+          "#d24c4d",
+          "#fd7370",
+          "#ffafaa",
+          "#ffe8e7"
+        ]
+      },
+      "azure": {
+        "role": "tertiary",
+        "displayName": "Azure",
+        "canonical": "#2b50a8",
+        "tonalRamp": [
+          "#000036",
+          "#01136a",
+          "#15368c",
+          "#345ab3",
+          "#527cd8",
+          "#76a2ff",
+          "#acc7ff",
+          "#e7efff"
+        ],
+        "oklch": "oklch(45.6% 0.148 264.2)"
+      },
+      "azure-bright": {
+        "role": "tertiary",
+        "displayName": "Bright Azure",
+        "canonical": "#5b82e0",
+        "tonalRamp": [
+          "#010036",
+          "#04126a",
+          "#19368d",
+          "#3759b4",
+          "#557bd8",
+          "#78a1ff",
+          "#adc7ff",
+          "#e7efff"
+        ],
+        "oklch": "oklch(62.3% 0.149 265.4)"
+      },
+      "azure-text": {
+        "role": "tertiary",
+        "displayName": "Azure Tint",
+        "canonical": "#a3bcf7",
+        "tonalRamp": [
+          "#01032f",
+          "#101f4e",
+          "#2a3d6e",
+          "#495e93",
+          "#687fb6",
+          "#8ba3dd",
+          "#aec6ff",
+          "#e7efff"
+        ],
+        "oklch": "oklch(79.8% 0.089 266.6)"
+      },
+      "azure-wash": {
+        "role": "tertiary",
+        "displayName": "Azure Wash",
+        "canonical": "rgba(43, 80, 168, 0.2)",
+        "tonalRamp": [
+          "#000036",
+          "#01136a",
+          "#15368c",
+          "#345ab3",
+          "#527cd8",
+          "#76a2ff",
+          "#acc7ff",
+          "#e7efff"
+        ]
+      },
+      "purpure": {
+        "role": "tertiary",
+        "displayName": "Purpure",
+        "canonical": "#6a3a8b",
+        "tonalRamp": [
+          "#150023",
+          "#370052",
+          "#552474",
+          "#774799",
+          "#9867bc",
+          "#be8ce4",
+          "#ddb3ff",
+          "#f5e9ff"
+        ],
+        "oklch": "oklch(44.6% 0.134 309.3)"
+      },
+      "purpure-bright": {
+        "role": "tertiary",
+        "displayName": "Bright Purpure",
+        "canonical": "#8e5bb3",
+        "tonalRamp": [
+          "#150023",
+          "#370052",
+          "#562276",
+          "#78459b",
+          "#9966bf",
+          "#bf8ae7",
+          "#ddb3ff",
+          "#f5e9ff"
+        ],
+        "oklch": "oklch(56.4% 0.140 309.3)"
+      },
+      "purpure-text": {
+        "role": "tertiary",
+        "displayName": "Purpure Tint",
+        "canonical": "#d2b2f2",
+        "tonalRamp": [
+          "#140024",
+          "#301347",
+          "#4d3066",
+          "#6f518a",
+          "#8f71ac",
+          "#b495d3",
+          "#d8b7f8",
+          "#f4eaff"
+        ],
+        "oklch": "oklch(81.3% 0.095 307.2)"
+      },
+      "purpure-wash": {
+        "role": "tertiary",
+        "displayName": "Purpure Wash",
+        "canonical": "rgba(106, 58, 139, 0.24)",
+        "tonalRamp": [
+          "#150023",
+          "#370052",
+          "#552474",
+          "#774799",
+          "#9867bc",
+          "#be8ce4",
+          "#ddb3ff",
+          "#f5e9ff"
+        ]
+      },
+      "vert": {
+        "role": "tertiary",
+        "displayName": "Vert",
+        "canonical": "#1e7442",
+        "tonalRamp": [
+          "#001004",
+          "#002d13",
+          "#004d26",
+          "#1c7240",
+          "#42935f",
+          "#68b983",
+          "#8bdda5",
+          "#c6ffd5"
+        ],
+        "oklch": "oklch(49.6% 0.113 153.2)"
+      },
+      "vert-text": {
+        "role": "tertiary",
+        "displayName": "Vert Tint",
+        "canonical": "#7ad6a2",
+        "tonalRamp": [
+          "#001006",
+          "#002d18",
+          "#004d2d",
+          "#007346",
+          "#369565",
+          "#5ebb88",
+          "#82deaa",
+          "#c4ffdb"
+        ],
+        "oklch": "oklch(80.5% 0.116 157.6)"
+      },
+      "vert-wash": {
+        "role": "tertiary",
+        "displayName": "Vert Wash",
+        "canonical": "rgba(30, 116, 66, 0.2)",
+        "tonalRamp": [
+          "#001004",
+          "#002d13",
+          "#004d26",
+          "#1c7240",
+          "#42935f",
+          "#68b983",
+          "#8bdda5",
+          "#c6ffd5"
+        ]
+      },
+      "tenne": {
+        "role": "tertiary",
+        "displayName": "Tenné",
+        "canonical": "#b45e1f",
+        "tonalRamp": [
+          "#180600",
+          "#3c1800",
+          "#662e00",
+          "#964700",
+          "#bd6629",
+          "#e58b50",
+          "#ffb486",
+          "#ffeade"
+        ],
+        "oklch": "oklch(57.4% 0.133 51.9)"
+      },
+      "tenne-text": {
+        "role": "tertiary",
+        "displayName": "Tenné Tint",
+        "canonical": "#f3a766",
+        "tonalRamp": [
+          "#160700",
+          "#391b00",
+          "#603300",
+          "#8e4e00",
+          "#b46d28",
+          "#dc9150",
+          "#ffb577",
+          "#ffeada"
+        ],
+        "oklch": "oklch(78.9% 0.121 60.2)"
+      },
+      "tenne-wash": {
+        "role": "tertiary",
+        "displayName": "Tenné Wash",
+        "canonical": "rgba(180, 94, 31, 0.16)",
+        "tonalRamp": [
+          "#180600",
+          "#3c1800",
+          "#662e00",
+          "#964700",
+          "#bd6629",
+          "#e58b50",
+          "#ffb486",
+          "#ffeade"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The AGENT KANBAN wordmark beside the crest in the band; hidden below 700px."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Panel and dialog titles."
+      },
+      "inscription": {
+        "displayName": "Inscription",
+        "purpose": "Station names on their scrolls, fieldset legends and group heads, in tracked capitals. Folded names run vertically at 0.16em; the station chip is 12px at 0.1em."
+      },
+      "title": {
+        "displayName": "Card Title",
+        "purpose": "Card titles; finished cards drop to 600 in Pewter."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, confirms, toggle labels and field values (1.45 in fields); tabular numerals throughout."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Agent and model lines on cards, hints, notes and detail text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels; the next-stop line at the same weight."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Every button; the gold primary at 700, small buttons at 13px."
+      },
+      "chip": {
+        "displayName": "Chip",
+        "purpose": "Chips; the smallest reading size in the app."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Transcripts and the newest output line; run clocks at 600 13px; key caps at 600 12px."
+      }
+    },
+    "shadows": [
+      {
+        "name": "plate",
+        "value": "0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 14px -6px rgba(0, 0, 0, 0.55)",
+        "purpose": "Cards seated on their tracks (the --shadow-card token), with a 4% white inset along the top edge."
+      },
+      {
+        "name": "lift",
+        "value": "0 22px 48px -12px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.5)",
+        "purpose": "Menus, dialogs and the dragged card (the --shadow-lift token)."
+      },
+      {
+        "name": "recess",
+        "value": "inset 0 10px 18px -14px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(0, 0, 0, 0.6)",
+        "purpose": "Tracks cut into the field."
+      },
+      {
+        "name": "band-cast",
+        "value": "inset 0 -1px 0 rgba(174, 180, 187, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45)",
+        "purpose": "The band's silver underline and the shade it throws on the board."
+      },
+      {
+        "name": "panel-cast",
+        "value": "inset 1px 0 0 rgba(174, 180, 187, 0.25), -14px 0 32px rgba(0, 0, 0, 0.45)",
+        "purpose": "The card panel's silver edge and its shade."
+      },
+      {
+        "name": "dialog-ring",
+        "value": "0 0 0 1px rgba(174, 180, 187, 0.32), 0 22px 48px -12px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.5)",
+        "purpose": "Dialogs: a 1px silver ring around Lift."
+      },
+      {
+        "name": "card-top-edge",
+        "value": "inset 0 1px 0 rgba(255, 255, 255, 0.04)",
+        "purpose": "The engraved highlight along the top of every card plate."
+      },
+      {
+        "name": "selected-ring",
+        "value": "inset 0 0 0 1px #eef0f2",
+        "purpose": "Doubles the Polished Argent edge of the selected card."
+      },
+      {
+        "name": "drop-line",
+        "value": "0 -3px 0 #eef0f2",
+        "purpose": "The insertion line above the card a dragged card will displace."
+      },
+      {
+        "name": "rail-lip",
+        "value": "0 1px 0 rgba(0, 0, 0, 0.7)",
+        "purpose": "The 1px black lip under the 4px gilded rail."
+      },
+      {
+        "name": "shield-drop",
+        "value": "drop-shadow(0 2px 3px rgba(0, 0, 0, 0.75))",
+        "purpose": "Filter on station shields sitting on the rail."
+      },
+      {
+        "name": "escutcheon-drop",
+        "value": "drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.75))",
+        "purpose": "Filter on agent escutcheons."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The one curve (expo-out) for every transition and the drag drop-back."
+      },
+      {
+        "name": "duration-control",
+        "value": "150ms",
+        "purpose": "Buttons, fields, cards, tracks and disclosure chevrons."
+      },
+      {
+        "name": "duration-toggle",
+        "value": "160ms",
+        "purpose": "The toggle thumb sliding 16px; the dialog backdrop fading in."
+      },
+      {
+        "name": "duration-line",
+        "value": "180ms",
+        "purpose": "The rail, station shields (scale 1.18 when lit), scrolls, the trace, and the dragged card settling."
+      },
+      {
+        "name": "duration-rise",
+        "value": "200ms",
+        "purpose": "Dialogs rising 8px; the live track flashing once from #c5d5ff when new output arrives."
+      },
+      {
+        "name": "station-flash-hold",
+        "value": "1400ms",
+        "purpose": "How long a station stays lit after its count is clicked in the status line."
+      },
+      {
+        "name": "press",
+        "value": "translate: 0 1px",
+        "purpose": "Buttons settle 1px while pressed."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Under prefers-reduced-motion every animation and transition collapses to this, scrolling becomes instant and the drop animation is removed."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "status-row",
+        "value": "1640px",
+        "purpose": "At or below: the status line takes its own row."
+      },
+      {
+        "name": "panel-overlay",
+        "value": "1120px",
+        "purpose": "At or below: the card panel slides over the board (up to 460px)."
+      },
+      {
+        "name": "search-row",
+        "value": "860px",
+        "purpose": "At or below: search takes a full row; the New task form goes to one column."
+      },
+      {
+        "name": "wordmark-hidden",
+        "value": "700px",
+        "purpose": "At or below: the wordmark hides and the crest stands alone."
+      },
+      {
+        "name": "labels-hidden",
+        "value": "520px",
+        "purpose": "At or below: the band's button labels are hidden visually, still named for assistive tech."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one gold button in each surface: New task in the band, Send to Agent, Create task, Save and rescan.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>New task</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); padding: 8px 15px; font-weight: 700; color: var(--or-ink, #241a05); background: var(--or, #c9a24a); border: 1px solid var(--or-deep, #8c6b22); }\n.ds-btn-primary:hover { background: #d6b15b; }\n.ds-btn-primary:active { translate: 0 1px; }\n.ds-btn-primary:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Steel Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The default button: raised steel with an engraved edge.",
+      "html": "<button class=\"ds-btn\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/></svg>Retry</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); padding: 7px 12px; color: var(--argent-bright, #eef0f2); background: var(--steel-3, #202328); border: 1px solid var(--engrave-2, #3b4047); }\n.ds-btn:hover { background: var(--steel-4, #2a2e34); border-color: var(--engrave-hover, #4d535b); }\n.ds-btn:active { translate: 0 1px; }\n.ds-btn:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-btn:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet actions: New task at each station's foot, Add column, Cancel.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>New task</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); padding: 6px 9px; color: var(--argent-dim, #9aa1a9); background: transparent; border: 1px solid transparent; }\n.ds-btn-ghost:hover { background: var(--steel-3, #202328); color: var(--argent-bright, #eef0f2); }\n.ds-btn-ghost:active { translate: 0 1px; }\n.ds-btn-ghost:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button and In-Place Confirm",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "A gules outline that asks in place; the solid gules button commits and the safe choice takes focus.",
+      "html": "<div class=\"ds-danger\"><button class=\"ds-btn-danger\" type=\"button\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/></svg>Delete card</button><div class=\"ds-confirm\" role=\"alert\"><span>Delete this card and its run history?</span><button class=\"ds-btn-danger ds-solid\" type=\"button\">Delete</button><button class=\"ds-btn-keep\" type=\"button\">Keep</button></div></div>",
+      "css": ".ds-danger { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; font: 400 14px/1.5 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-bright, #eef0f2); }\n.ds-btn-danger, .ds-btn-keep { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); padding: 7px 12px; }\n.ds-btn-danger { color: var(--gules-text, #f28b90); background: transparent; border: 1px solid rgba(168, 34, 43, 0.75); }\n.ds-btn-danger:hover { background: var(--gules-wash, rgba(168, 34, 43, 0.16)); border-color: var(--gules, #a8222b); }\n.ds-btn-danger.ds-solid { color: #fff; background: var(--gules, #a8222b); border-color: #7c1119; }\n.ds-btn-danger.ds-solid:hover { background: #b72a33; }\n.ds-btn-keep { color: var(--argent-bright, #eef0f2); background: var(--steel-3, #202328); border: 1px solid var(--engrave-2, #3b4047); }\n.ds-btn-keep:hover { background: var(--steel-4, #2a2e34); border-color: var(--engrave-hover, #4d535b); }\n.ds-btn-danger:active, .ds-btn-keep:active { translate: 0 1px; }\n.ds-btn-danger:focus-visible, .ds-btn-keep:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14px; }\n.ds-confirm > span { flex: 1 1 180px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "An inkwell field with an engraved edge, a silver focus ring, and hints beneath; warnings lead with the drawn triangle.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-title\">Title</label><input class=\"ds-input\" id=\"ds-title\" placeholder=\"What should get done? A rough idea is fine\"><div class=\"ds-hint\">Higher priority starts first when several tasks are READY.</div><div class=\"ds-hint ds-warn\">That time has already passed. Pick a later time, or clear it.</div></div>",
+      "css": ".ds-field { max-width: 420px; }\n.ds-label { display: block; margin-bottom: 6px; font: 600 13.5px/1.3 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent, #c9ced4); }\n.ds-input { width: 100%; box-sizing: border-box; padding: 8px 10px; font: 400 14px/1.45 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-bright, #eef0f2); background: var(--well, #0d0e10); border: 1px solid var(--field-edge, #62686f); border-radius: var(--radius-sm, 6px); transition: border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), outline-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-input::placeholder { color: var(--argent-faint, #858c94); }\n.ds-input:hover:not(:focus) { border-color: var(--argent-dim, #9aa1a9); }\n.ds-input:focus, .ds-input:focus-visible { outline: 2px solid rgba(238, 240, 242, 0.45); outline-offset: 0; border-color: var(--argent-edge, #aeb4bb); }\n.ds-hint { margin-top: 6px; font: 400 13.5px/1.45 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-dim, #9aa1a9); }\n.ds-hint.ds-warn { color: var(--tenne-text, #f3a766); }\n.ds-hint.ds-warn::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; background: currentColor; -webkit-mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E\") center / contain no-repeat; mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E\") center / contain no-repeat; }"
+    },
+    {
+      "name": "Status Line",
+      "kind": "nav",
+      "refersTo": "status-pill",
+      "description": "The band's live status: counts with their words, each state in its own mark and tint; a click goes to the station.",
+      "html": "<nav class=\"ds-status\" aria-label=\"Board status\"><button class=\"ds-pill ds-live\" type=\"button\"><span class=\"ds-live-dot\" aria-hidden=\"true\"></span><b>3</b>running</button><button class=\"ds-pill\" type=\"button\"><svg class=\"ds-mark\" width=\"12\" height=\"14\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#C9A24A\" stroke=\"#8C6B22\" stroke-width=\"2.6\"/></svg><b>1</b>ready</button><button class=\"ds-pill ds-gules\" type=\"button\"><svg class=\"ds-mark\" width=\"12\" height=\"14\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#A8222B\" stroke=\"#AEB4BB\" stroke-width=\"2.6\"/></svg><b>1</b>blocked</button><button class=\"ds-pill ds-purpure\" type=\"button\"><svg class=\"ds-mark\" width=\"12\" height=\"14\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#6A3A8B\" stroke=\"#AEB4BB\" stroke-width=\"2.6\"/></svg><b>2</b>to review</button><span class=\"ds-rule\" aria-hidden=\"true\"></span><button class=\"ds-pill\" type=\"button\"><span class=\"ds-jewel\" aria-hidden=\"true\"></span><b>4</b>of 5 agents ready</button></nav>",
+      "css": ".ds-status { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 10px 18px; background: linear-gradient(180deg, #111215 0%, #09090b 100%); box-shadow: inset 0 -1px 0 rgba(174, 180, 187, 0.3); }\n.ds-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; font: 500 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent, #c9ced4); background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-pill b { font-weight: 700; font-size: 15px; color: var(--argent-bright, #eef0f2); }\n.ds-pill:hover { background: var(--steel-3, #202328); border-color: var(--engrave, #2b2f35); }\n.ds-pill:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-pill.ds-live b { color: var(--azure-text, #a3bcf7); }\n.ds-pill.ds-gules, .ds-pill.ds-gules b { color: var(--gules-text, #f28b90); }\n.ds-pill.ds-purpure, .ds-pill.ds-purpure b { color: var(--purpure-text, #d2b2f2); }\n.ds-mark { display: block; }\n.ds-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--azure-bright, #5b82e0); }\n.ds-jewel { width: 8px; height: 8px; rotate: 45deg; border-radius: 1.5px; background: var(--vert-text, #7ad6a2); }\n.ds-rule { width: 1px; height: 24px; margin: 0 8px; background: var(--engrave-2, #3b4047); }"
+    },
+    {
+      "name": "Settings Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Borderless tabs; the selected tab is Polished Argent with a 2px silver underline.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Settings sections\"><button role=\"tab\" aria-selected=\"true\" type=\"button\">Accounts</button><button role=\"tab\" aria-selected=\"false\" type=\"button\">Connections</button><button role=\"tab\" aria-selected=\"false\" type=\"button\">Credentials</button><button role=\"tab\" aria-selected=\"false\" type=\"button\">Judge</button><button role=\"tab\" aria-selected=\"false\" type=\"button\">Environment</button></div>",
+      "css": ".ds-tabs { display: flex; flex-wrap: wrap; gap: 2px; }\n.ds-tabs button { padding: 8px 10px 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-dim, #9aa1a9); background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer; transition: color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-tabs button:hover { color: var(--argent-bright, #eef0f2); border-bottom-color: var(--engrave-2, #3b4047); }\n.ds-tabs button[aria-selected='true'] { color: var(--argent-bright, #eef0f2); border-bottom-color: var(--argent-bright, #eef0f2); }\n.ds-tabs button:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }"
+    },
+    {
+      "name": "State Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Small engraved tags; a tincture chip takes its wash, tint and a stronger edge, and always carries a word.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip ds-urgent\">Urgent</span><span class=\"ds-chip ds-high\">High</span><span class=\"ds-chip\">Worktree</span><span class=\"ds-chip ds-running\">Queued</span><span class=\"ds-chip ds-goal\">Goal · round 2 of 5</span><span class=\"ds-chip ds-met\">Goal met</span><span class=\"ds-chip ds-wait\">Waits for “Parent task”</span><span class=\"ds-chip ds-station\">Running</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 5px; }\n.ds-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; font: 600 12px/1.35 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent, #c9ced4); background: var(--steel-3, #202328); border: 1px solid var(--engrave-2, #3b4047); border-radius: 4px; white-space: nowrap; }\n.ds-chip.ds-urgent { color: var(--gules-text, #f28b90); background: var(--gules-wash, rgba(168, 34, 43, 0.16)); border-color: rgba(168, 34, 43, 0.75); }\n.ds-chip.ds-high { color: var(--argent-bright, #eef0f2); border-color: var(--argent-edge, #aeb4bb); }\n.ds-chip.ds-running { color: var(--azure-text, #a3bcf7); background: var(--azure-wash, rgba(43, 80, 168, 0.2)); border-color: rgba(91, 130, 224, 0.55); }\n.ds-chip.ds-goal { color: var(--purpure-text, #d2b2f2); background: var(--purpure-wash, rgba(106, 58, 139, 0.24)); border-color: rgba(142, 91, 179, 0.7); }\n.ds-chip.ds-met { color: var(--vert-text, #7ad6a2); background: var(--vert-wash, rgba(30, 116, 66, 0.2)); border-color: rgba(30, 116, 66, 0.75); }\n.ds-chip.ds-wait { color: var(--argent-bright, #eef0f2); background: var(--well, #0d0e10); border-color: #5a6068; }\n.ds-chip.ds-station { font: 700 12px/1.35 var(--font-display, Cinzel, 'Atkinson Hyperlegible Next', serif); letter-spacing: 0.1em; text-transform: uppercase; color: var(--argent-bright, #eef0f2); background: transparent; border-color: var(--argent-edge, #aeb4bb); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Blackened-steel plates on recessed tracks: the selected RUNNING card with its live block, and a BLOCKED card under its hatch band waiting on the owner.",
+      "html": "<div class=\"ds-board\"><div class=\"ds-track ds-track-running\"><article class=\"ds-card ds-selected\" tabindex=\"0\"><div class=\"ds-card-head\"><svg class=\"ds-esc\" width=\"22\" height=\"26\" viewBox=\"0 0 24 28\" role=\"img\" aria-label=\"Codex, high priority\"><defs><pattern id=\"ds-card-h-azure\" width=\"6\" height=\"6\" patternUnits=\"userSpaceOnUse\"><path d=\"M0 3H6\" stroke=\"#FFFFFF\" stroke-width=\"1\" stroke-opacity=\"0.28\"/></pattern></defs><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#2B50A8\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"url(#ds-card-h-azure)\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"rgba(255,255,255,0.28)\" stroke-width=\"1\"/><text x=\"12\" y=\"15.5\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"700\" fill=\"#FFFFFF\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">X</text></svg><div class=\"ds-card-title\">Add OAuth sign-in to the Codex adapter</div></div><div class=\"ds-card-meta\"><div class=\"ds-agent\">OpenAI Codex</div><div>gpt-5.4 · high</div></div><div class=\"ds-card-chips\"><span class=\"ds-chip ds-high\">High</span></div><div class=\"ds-live\"><div class=\"ds-live-row\"><span class=\"ds-live-dot\" aria-hidden=\"true\"></span><span class=\"ds-time\">12:43</span><span class=\"ds-role\">working</span></div><div class=\"ds-activity\">editing src/main/accounts.ts</div><div class=\"ds-live-track\" aria-hidden=\"true\"></div></div><div class=\"ds-next\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg><span>REVIEW when it finishes</span></div></article></div><div class=\"ds-track ds-track-blocked\"><article class=\"ds-card ds-blocked\" tabindex=\"0\"><div class=\"ds-hatch\" aria-hidden=\"true\"></div><div class=\"ds-card-head\"><svg class=\"ds-esc\" width=\"26\" height=\"30\" viewBox=\"0 0 24 28\" role=\"img\" aria-label=\"Claude Code, urgent priority\"><defs><pattern id=\"ds-card-h-tenne\" width=\"6\" height=\"6\" patternUnits=\"userSpaceOnUse\"><path d=\"M0 0L6 6M6 0L0 6\" stroke=\"#FFFFFF\" stroke-width=\"1\" stroke-opacity=\"0.28\"/></pattern></defs><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#B45E1F\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"url(#ds-card-h-tenne)\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"#E8C872\" stroke-width=\"2.2\"/><text x=\"12\" y=\"15.5\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"700\" fill=\"#FFFFFF\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">C</text></svg><div class=\"ds-card-title\">Deploy the preview build</div></div><div class=\"ds-card-meta\"><div class=\"ds-agent\">Claude Code</div><div>sonnet · medium</div></div><div class=\"ds-reason\">Run failed: the \"preview\" script does not exist.</div><div><button class=\"ds-btn-small\" type=\"button\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/></svg>Retry</button></div><div class=\"ds-next ds-you\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/></svg><span>READY after you fix it</span></div></article></div></div>",
+      "css": ".ds-board { display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: var(--field, #070708) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M24 1L47 24L24 47L1 24Z' fill='none' stroke='%23aeb4bb' stroke-opacity='0.04'/%3E%3Ccircle cx='24' cy='24' r='1.3' fill='%23aeb4bb' fill-opacity='0.07'/%3E%3C/svg%3E\"); font: 400 14px/1.5 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-bright, #eef0f2); font-variant-numeric: tabular-nums; }\n.ds-track { width: 250px; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: rgba(13, 14, 16, 0.78); border: 1px solid var(--engrave, #2b2f35); border-radius: 10px; box-shadow: inset 0 10px 18px -14px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(0, 0, 0, 0.6); }\n.ds-track-running { border-color: rgba(91, 130, 224, 0.42); }\n.ds-track-blocked { border-color: rgba(168, 34, 43, 0.5); }\n.ds-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 11px 12px 10px; background: linear-gradient(180deg, #1b1d21 0%, #151619 100%); border: 1px solid var(--engrave, #2b2f35); border-radius: var(--radius, 8px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 14px -6px rgba(0, 0, 0, 0.55)); overflow: hidden; cursor: grab; transition: border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-card:hover { border-color: #4a5058; }\n.ds-card:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-card.ds-selected { border-color: var(--argent-bright, #eef0f2); box-shadow: inset 0 0 0 1px var(--argent-bright, #eef0f2), var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 14px -6px rgba(0, 0, 0, 0.55)); }\n.ds-card.ds-blocked { border-color: rgba(168, 34, 43, 0.72); padding-top: 17px; }\n.ds-hatch { position: absolute; inset: 0 0 auto; height: 7px; background: repeating-linear-gradient(90deg, var(--gules, #a8222b) 0 2px, rgba(168, 34, 43, 0.28) 2px 5px); border-bottom: 1px solid rgba(168, 34, 43, 0.7); }\n.ds-card-head { display: flex; align-items: flex-start; gap: 10px; }\n.ds-esc { display: block; flex-shrink: 0; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.75)); }\n.ds-card-title { flex: 1; min-width: 0; padding-top: 1px; font: 700 15px/1.35 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-bright, #eef0f2); }\n.ds-card-meta { display: flex; flex-direction: column; gap: 1px; font-size: 13.5px; line-height: 1.4; color: var(--argent-dim, #9aa1a9); }\n.ds-agent { color: var(--argent, #c9ced4); }\n.ds-card-chips { display: flex; flex-wrap: wrap; gap: 5px; }\n.ds-chip { display: inline-flex; align-items: center; padding: 2px 7px; font: 600 12px/1.35 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent, #c9ced4); background: var(--steel-3, #202328); border: 1px solid var(--engrave-2, #3b4047); border-radius: 4px; }\n.ds-chip.ds-high { color: var(--argent-bright, #eef0f2); border-color: var(--argent-edge, #aeb4bb); }\n.ds-live { display: flex; flex-direction: column; gap: 5px; }\n.ds-live-row { display: flex; align-items: center; gap: 8px; }\n.ds-live-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--azure-bright, #5b82e0); }\n.ds-time { font: 600 13px var(--font-mono, 'Atkinson Hyperlegible Mono', 'Cascadia Mono', Consolas, monospace); color: var(--argent-bright, #eef0f2); }\n.ds-role { font-size: 13px; font-weight: 600; color: var(--azure-text, #a3bcf7); }\n.ds-activity { font: 13px var(--font-mono, 'Atkinson Hyperlegible Mono', 'Cascadia Mono', Consolas, monospace); color: var(--argent-dim, #9aa1a9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.ds-live-track { height: 2px; border-radius: 1px; background: rgba(91, 130, 224, 0.45); animation: ds-tick 200ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)) 1; }\n@keyframes ds-tick { from { background: #c5d5ff; } }\n.ds-reason { padding: 6px 8px; font-size: 13.5px; line-height: 1.4; color: var(--gules-text, #f28b90); background: var(--gules-wash, rgba(168, 34, 43, 0.16)); border: 1px solid rgba(168, 34, 43, 0.5); border-radius: 5px; }\n.ds-btn-small { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/1.2 var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); border-radius: var(--radius-sm, 6px); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), color 150ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); gap: 5px; padding: 5px 10px; font-size: 13px; color: var(--argent-bright, #eef0f2); background: var(--steel-3, #202328); border: 1px solid var(--engrave-2, #3b4047); }\n.ds-btn-small:hover { background: var(--steel-4, #2a2e34); border-color: var(--engrave-hover, #4d535b); }\n.ds-btn-small:active { translate: 0 1px; }\n.ds-btn-small:focus-visible { outline: 2px solid var(--argent-bright, #eef0f2); outline-offset: 2px; }\n.ds-next { display: flex; align-items: flex-start; gap: 7px; padding-top: 8px; border-top: 1px solid var(--engrave, #2b2f35); font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--argent, #c9ced4); }\n.ds-next > svg { margin-top: 1px; color: var(--argent-dim, #9aa1a9); }\n.ds-next.ds-you { color: var(--argent-bright, #eef0f2); font-weight: 700; }\n.ds-next.ds-you > svg { color: var(--argent-bright, #eef0f2); }\n@media (prefers-reduced-motion: reduce) { .ds-live-track { animation: none; } }"
+    },
+    {
+      "name": "Station Head and Trace",
+      "kind": "custom",
+      "refersTo": "station-shield",
+      "description": "The line: each station a shield on the gilded rail with its count, its name on a scroll and one line of state. Shown with a RUNNING card selected, so the rail dims except the pale-gilt trace to its next stop.",
+      "html": "<div class=\"ds-line ds-has-selection\"><section class=\"ds-station ds-first\"><header class=\"ds-head\"><svg class=\"ds-shield\" width=\"30\" height=\"35\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#141519\"/><path class=\"ds-shield-edge\" d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"#AEB4BB\" stroke-width=\"1.6\"/><text x=\"12\" y=\"15.8\" text-anchor=\"middle\" font-size=\"10.5\" font-weight=\"700\" fill=\"#EEF0F2\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">3</text></svg><div class=\"ds-ribbon\"><span>Todo</span></div><div class=\"ds-note\">3 to do</div></header></section><section class=\"ds-station\"><header class=\"ds-head\"><svg class=\"ds-shield\" width=\"30\" height=\"35\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><defs><pattern id=\"ds-st-or\" width=\"6\" height=\"6\" patternUnits=\"userSpaceOnUse\"><circle cx=\"3\" cy=\"3\" r=\"0.9\" fill=\"#241A05\" fill-opacity=\"0.3\"/></pattern></defs><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#C9A24A\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"url(#ds-st-or)\"/><path class=\"ds-shield-edge\" d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"#8C6B22\" stroke-width=\"1.6\"/><text x=\"12\" y=\"15.8\" text-anchor=\"middle\" font-size=\"10.5\" font-weight=\"700\" fill=\"#241A05\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">1</text></svg><div class=\"ds-ribbon\"><span>Ready</span></div><div class=\"ds-note ds-gold\">starts by itself</div></header></section><section class=\"ds-station\"><header class=\"ds-head ds-here ds-trace-r\"><svg class=\"ds-shield ds-lit-here\" width=\"30\" height=\"35\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><defs><pattern id=\"ds-st-azure\" width=\"6\" height=\"6\" patternUnits=\"userSpaceOnUse\"><path d=\"M0 3H6\" stroke=\"#FFFFFF\" stroke-width=\"1\" stroke-opacity=\"0.28\"/></pattern></defs><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#2B50A8\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"url(#ds-st-azure)\"/><path class=\"ds-shield-edge\" d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"#AEB4BB\" stroke-width=\"1.6\"/><text x=\"12\" y=\"15.8\" text-anchor=\"middle\" font-size=\"10.5\" font-weight=\"700\" fill=\"#FFFFFF\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">3</text></svg><div class=\"ds-ribbon\"><span>Running</span></div><div class=\"ds-note ds-live\">3 live</div></header></section><section class=\"ds-station ds-last\"><header class=\"ds-head ds-trace-l\"><svg class=\"ds-shield ds-lit-next\" width=\"30\" height=\"35\" viewBox=\"0 0 24 28\" aria-hidden=\"true\"><defs><pattern id=\"ds-st-purpure\" width=\"6\" height=\"6\" patternUnits=\"userSpaceOnUse\"><path d=\"M6 0L0 6M9 3L3 9M3 -3L-3 3\" stroke=\"#FFFFFF\" stroke-width=\"1\" stroke-opacity=\"0.28\"/></pattern></defs><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"#6A3A8B\"/><path d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"url(#ds-st-purpure)\"/><path class=\"ds-shield-edge\" d=\"M2 2H22V13C22 20.5 17 24.8 12 26.5C7 24.8 2 20.5 2 13Z\" fill=\"none\" stroke=\"#AEB4BB\" stroke-width=\"1.6\"/><text x=\"12\" y=\"15.8\" text-anchor=\"middle\" font-size=\"10.5\" font-weight=\"700\" fill=\"#FFFFFF\" font-family=\"'Atkinson Hyperlegible Next', sans-serif\">2</text></svg><div class=\"ds-ribbon\"><span>Review</span></div><div class=\"ds-note ds-gold\">next stop</div></header></section></div>",
+      "css": ".ds-line { display: flex; gap: 12px; padding: 12px 16px 4px; background: var(--field, #070708) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M24 1L47 24L24 47L1 24Z' fill='none' stroke='%23aeb4bb' stroke-opacity='0.04'/%3E%3Ccircle cx='24' cy='24' r='1.3' fill='%23aeb4bb' fill-opacity='0.07'/%3E%3C/svg%3E\"); }\n.ds-station { position: relative; flex: 0 0 160px; }\n.ds-head { position: relative; height: 102px; padding-top: 6px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }\n.ds-head::before, .ds-head::after { content: ''; position: absolute; top: 22px; height: 4px; background: var(--or, #c9a24a); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); transition: opacity 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), background-color 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-head::before { left: -7px; right: 50%; }\n.ds-head::after { left: 50%; right: -7px; }\n.ds-first .ds-head::before, .ds-last .ds-head::after { display: none; }\n.ds-has-selection .ds-head::before, .ds-has-selection .ds-head::after { opacity: 0.3; }\n.ds-has-selection .ds-trace-l::before, .ds-has-selection .ds-trace-r::after { opacity: 1; background: var(--or-pale, #f0d68a); }\n.ds-shield { position: relative; z-index: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.75)); transition: transform 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-shield .ds-shield-edge { transition: stroke 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), stroke-width 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-shield.ds-lit-here { transform: scale(1.18); }\n.ds-shield.ds-lit-here .ds-shield-edge, .ds-shield.ds-lit-next .ds-shield-edge { stroke: var(--or-pale, #f0d68a); stroke-width: 2.4; }\n.ds-shield.ds-lit-next .ds-shield-edge { stroke-dasharray: 3.2 2.2; }\n.ds-ribbon { position: relative; z-index: 1; display: flex; justify-content: center; max-width: calc(100% - 28px); margin-top: 6px; padding: 5px 14px 4px; background: #1e2025; border-top: 1px solid var(--argent-edge, #aeb4bb); border-bottom: 1px solid var(--argent-edge, #aeb4bb); font: 700 13px/1.35 var(--font-display, Cinzel, 'Atkinson Hyperlegible Next', serif); letter-spacing: 0.14em; text-transform: uppercase; color: var(--argent-bright, #eef0f2); transition: border-color 180ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); }\n.ds-ribbon::before, .ds-ribbon::after { content: ''; position: absolute; top: 5px; bottom: -5px; width: 12px; background: #121316; border-top: 1px solid #6e757d; border-bottom: 1px solid #6e757d; }\n.ds-ribbon::before { right: 100%; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 5px 50%); }\n.ds-ribbon::after { left: 100%; clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 50%, 100% 100%, 0 100%); }\n.ds-station:hover .ds-ribbon span { color: #fff; }\n.ds-head.ds-here .ds-ribbon { border-color: var(--or-pale, #f0d68a); }\n.ds-note { margin-top: 6px; font: 600 13px/17px var(--font-ui, 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif); color: var(--argent-dim, #9aa1a9); white-space: nowrap; }\n.ds-note.ds-gold { color: var(--or-bright, #e8c872); }\n.ds-note.ds-live { color: var(--azure-text, #a3bcf7); }\n@media (prefers-reduced-motion: reduce) { .ds-head::before, .ds-head::after, .ds-shield, .ds-ribbon { transition: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Heraldic Hall of Record",
+    "overview": "A black field where the owner's crest presides, each agent bears its own arms, and every task advances along one gilded line of eight stations. The look is taken from the crest itself: sable, polished silver metalwork, gold rationed to what matters most, the heraldic tinctures for state, and Roman inscriptional capitals for names. It refuses the category's default, the dark developer dashboard with one neon accent.\n\nThis is an instrument left open all day on a large monitor and sometimes a small laptop, so ornament lives in the frame (the band, the rail of station shields, the name scrolls, a faint diapered field) and the working surface stays calm: blackened-steel plates, a hyperlegible sans at 12 to 16px, and silver for everything the hand touches. Density is high without crowding: stations 204 to 332px wide, 8px between cards, 12px between stations. There is no light theme; the crest's world is a black field.\n\nNothing glows and nothing loops. Light appears only as 1px engraved hairlines and top-lit steel, and every blurred shadow is black. Motion reports a change in 150 to 200ms and stops: a running card shows a ticking clock and its newest line of output, and its track flashes once when more arrives.",
+    "keyCharacteristics": [
+      "Sable field under a faint silver lozenge diaper; blackened-steel plates on recessed tracks.",
+      "Argent is the everyday accent; gold is rationed to the primary action, READY and the line itself.",
+      "Five state tinctures, each doubled by Petra Sancta hatching, a word or a count.",
+      "One heater-shield outline for every heraldic mark.",
+      "Cinzel capitals for names, Atkinson Hyperlegible Next for reading, its Mono for machine output.",
+      "Self-hosted type and drawn SVG icons; nothing is fetched from outside the app."
+    ],
+    "rules": [
+      {
+        "name": "The State-Only Motion Rule",
+        "body": "Transitions run 150 to 200ms on one expo-out curve (cubic-bezier(0.16, 1, 0.3, 1)) and only when something changed; nothing repeats, spins or pulses, and under prefers-reduced-motion every transition collapses to an instant and scrolling stops being smooth.",
+        "section": "overview"
+      },
+      {
+        "name": "The Silver Hand Rule",
+        "body": "Everything the hand touches answers in argent: the focus ring, text selection, the active tab, a switched-on toggle, checkboxes, the selected card's doubled edge and a drop target's wash. No interactive state is drawn in gold or in a tincture.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rationed Gold Rule",
+        "body": "Or appears in these places only: the single primary button of each surface (New task in the band, Send to Agent in the card panel, Create task, Save and rescan), the READY station (its shield, note and track edge), the rail and its trace, the bordure of an urgent escutcheon, and the plain gilded shield that stands in for the crest.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Heraldries Rule",
+        "body": "Tinctures speak in two voices, kept apart by what carries them. On a station shield, count, chip, note, banner or track edge a tincture is a state. On an escutcheon it is an agent's arms and always travels with the agent's letter: Claude Code tenné, Codex azure, Hermes purpure, Ollama vert, LM Studio argent. No agent bears gules; trouble keeps its colour to itself.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never Colour Alone Rule",
+        "body": "Every tincture that means something carries a second sign: its Petra Sancta hatching (gules vertical, azure horizontal, vert bendwise, purpure bend sinister, tenné crossed diagonally, or dotted, argent plain), a word, a count, a letter, a shape, or the drawn warning triangle that leads warning banners and hints.",
+        "section": "colors"
+      },
+      {
+        "name": "The Inscription Rule",
+        "body": "Cinzel speaks names only: the wordmark, station names, panel and dialog titles, fieldset legends, group heads and the station chip. It is always 700, always capitals, always tracked (0.06 to 0.16em) and never below 12px. Sentences, counts, button labels and form text are never Cinzel; the one editable Cinzel line is a station's own name, renamed in place on its scroll.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Voice Rule",
+        "body": "Atkinson Hyperlegible Mono carries only what machines say or count: run clocks, the newest line of agent output, transcripts, key caps and inline code.",
+        "section": "typography"
+      },
+      {
+        "name": "The Live Middle Rule",
+        "body": "When the line is short of room, empty stations narrow first. Stations fold only while READY, RUNNING, BLOCKED or REVIEW hold cards, least urgent first (DONE, TRIAGE, SCHEDULED, TODO), never the selected card's station and never while searching. The owner's own fold or unfold always wins.",
+        "section": "layout"
+      },
+      {
+        "name": "The Status Keeps Its Words Rule",
+        "body": "Short of room, the status line moves to its own row rather than shortening its labels; a count always travels with its word.",
+        "section": "layout"
+      },
+      {
+        "name": "The No-Glow Rule",
+        "body": "Every blurred shadow is black. Light enters only as 1px engraved hairlines and top-lit steel; nothing emits light, nothing blooms, and nothing blurs what lies behind it.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Three Depths Rule",
+        "body": "On the board there are three heights: tracks cut into the field, plates seated on them with Plate, and floating things (menus, dialogs, the dragged card) raised with Lift. The band and the card panel are the frame and cast their own shade over the board.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Shield Rule",
+        "body": "Every heraldic mark uses the same heater-shield outline: agent escutcheons, station shields, the station marks in the status line and the plain gilded shield. Only the fill, hatching, rim and size change.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Dashed Means Not Yet Rule",
+        "body": "A dashed line marks what has not happened yet: a raw idea card in TRIAGE, an empty station's hint, an unassigned escutcheon, and the pale-gilt rim of the next stop's shield.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Next Stop Rule",
+        "body": "Every card on the line ends with its next stop, under a hairline: the station it goes to next and what moves it there, in plain words, led by an arrow. When the card waits on the owner, the line turns Polished Argent at 700 and the arrow becomes a person. DONE, the end of the line, has none.",
+        "section": "components"
+      },
+      {
+        "name": "The Confirm In Place Rule",
+        "body": "A destructive action asks inside the surface that offered it (the station menu, the card panel's foot, an account row) with a solid gules button to commit and the safe choice focused: Keep it, Keep, Stay signed in.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep argent for every interactive state: the 2px Polished Argent focus ring at a 2px offset, selection, the active tab, toggles, the selected card and drop targets.",
+      "Do keep gold to its list: one primary button per surface, the READY station, the rail and its trace, the urgent bordure and the plain gilded shield.",
+      "Do give every tincture a second sign: hatching, a word, a count, a letter or the drawn warning triangle.",
+      "Do draw every heraldic mark with the one heater-shield outline (24 by 28) and fill it from the tincture set with its Petra Sancta hatching.",
+      "Do set names in Cinzel 700 tracked capitals, everything read, counted or clicked in Atkinson Hyperlegible Next at 12px or larger, and machine output in its Mono.",
+      "Do keep motion at 150 to 200ms on cubic-bezier(0.16, 1, 0.3, 1), once per change, and honour prefers-reduced-motion.",
+      "Do confirm destructive actions in place, with a solid gules commit and the safe choice focused.",
+      "Do end every card on the line with its next stop, and make it bright and bold when the card waits on the owner.",
+      "Do draw icons as 12 to 18px Lucide line icons bundled with the app, or as drawn SVG."
+    ],
+    "donts": [
+      "Don't gild anything else: no gold text for emphasis, no gold edges on ordinary cards, no second gold button in one surface.",
+      "Don't let anything glow, bloom or blur what lies behind it; every blurred shadow is black.",
+      "Don't loop: no spinners, pulses, shimmer or marching borders; show liveness with a ticking clock and the newest line of output.",
+      "Don't put gules on an agent's arms; it belongs to trouble.",
+      "Don't set sentences, counts, button labels or form text in Cinzel.",
+      "Don't use typed characters as icons.",
+      "Don't load anything from outside the app: fonts, images and icons ship inside it.",
+      "Don't commit, embed or describe the owner's crest: it is loaded at runtime from the git-ignored `data/brand/` folder, and a plain gilded shield ships in its place."
+    ]
+  }
+}

@@ -7,6 +7,7 @@ import type {
   AgentTestResult,
   AppSettings,
   BoardState,
+  BrandAssets,
   CardPatchUpdate,
   DiscoveryReport,
   DispatchRequest,
@@ -88,6 +89,7 @@ const api: RendererApi = {
   pickFolder: (defaultPath?: string | null) =>
     ipcRenderer.invoke(IPC.pickFolder, defaultPath ?? null) as Promise<string | null>,
   gitRepoInfo: (path: string) => ipcRenderer.invoke(IPC.gitRepoInfo, path) as Promise<GitRepoInfo>,
+  getBrand: () => ipcRenderer.invoke(IPC.brandGet) as Promise<BrandAssets>,
 
   onRunUpdate: (cb) => {
     const listener = (_e: unknown, update: RunUpdate): void => cb(update);

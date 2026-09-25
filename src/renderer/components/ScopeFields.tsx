@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { CardAgentConfig, DiscoveryReport } from '@shared/types';
 import MultiSelect, { type Option } from './MultiSelect.js';
+import { plainStatus } from './status.js';
 
 export type ScopeValue = Pick<
   CardAgentConfig,
@@ -39,7 +40,7 @@ export default function ScopeFields({ discovery, agentId, value, onChange }: Pro
         .map((s) => ({
           id: s.id,
           name: s.name,
-          description: `${s.ownerName} · ${s.availability} — ${s.statusDetail}`,
+          description: `${s.ownerName} · ${s.availability} — ${plainStatus(s.statusDetail)}`,
           disabled: s.availability === 'unavailable',
           disabledReason: s.statusDetail,
         })),

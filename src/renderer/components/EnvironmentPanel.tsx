@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, CircleCheck, CircleX, RefreshCw } from 'lucide-react';
 import type { DiscoveredMcpServer, DiscoveryReport } from '@shared/types';
+import { plainStatus } from './status.js';
 
 /**
  * Everything the last scan found, with every count opening into its items and
@@ -31,7 +33,9 @@ function Expander({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="chevron">{open ? '▾' : '▸'}</span>
+        <span className="chevron" aria-hidden="true">
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+        </span>
         <span className="expander-label">{label}</span>
         <strong>{count}</strong>
       </button>
@@ -94,15 +98,16 @@ function McpServerRow({
     <div className="mcp-row">
       <div className="mcp-head">
         <button type="button" className="mcp-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          <span className="chevron">{open ? '▾' : '▸'}</span>
+          <span className="chevron" aria-hidden="true">
+            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </span>
           <span className={`dot ${server.availability}`} />
           <span className="mcp-name">{server.name}</span>
-          <span className="mcp-status">{server.statusDetail}</span>
+          <span className="mcp-status">{plainStatus(server.statusDetail)}</span>
         </button>
         {server.signIn === 'oauth' ? (
           <button
             type="button"
-            className={server.availability === 'available' ? '' : 'primary'}
             disabled={waiting}
             onClick={onSignIn}
             title={`Open the sign-in page for ${server.name} in your default browser`}
@@ -123,7 +128,12 @@ function McpServerRow({
       ) : null}
       {state && state.status !== 'waiting' ? (
         <div className={state.status === 'done' ? 'mcp-note' : 'mcp-note sr-fix'}>
-          {state.status === 'done' ? '✔' : '✘'} {state.text}
+          {state.status === 'done' ? (
+            <CircleCheck className="inline-icon ok" size={14} aria-label="Succeeded" />
+          ) : (
+            <CircleX className="inline-icon fail" size={14} aria-label="Failed" />
+          )}{' '}
+          {state.text}
         </div>
       ) : null}
       {open ? (
@@ -208,7 +218,7 @@ export default function EnvironmentPanel({
     list.map((s) => ({
       key: s.id,
       title: s.name,
-      detail: `${s.ownerName} · ${s.statusDetail}`,
+      detail: `${s.ownerName} · ${plainStatus(s.statusDetail)}`,
       dot: s.availability,
     }));
   const plugins: Row[] = discovery.plugins.map((p) => ({
@@ -237,7 +247,8 @@ export default function EnvironmentPanel({
   return (
     <>
       <div className="row" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => void onRescan()} disabled={busy}>
+        <button type="button" onClick={() => void onRescan()} disabled={busy} style={{ flex: '0 0 auto' }}>
+          <RefreshCw size={14} aria-hidden="true" />
           {busy ? 'Rescanning…' : 'Rescan environment'}
         </button>
       </div>

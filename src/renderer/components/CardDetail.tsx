@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, Play, RotateCcw, Square, Trash, X } from 'lucide-react';
 import type {
   AgentRun,
   AppSettings,
@@ -11,12 +12,13 @@ import type {
 } from '@shared/types';
 import { PRIORITIES } from '@shared/types';
 import { latestRun, sortedColumns } from '@shared/boardOps';
-import { flowKeyOf, isParentDone, parentCandidates } from '@shared/flow';
+import { type FlowKey, flowKeyOf, isParentDone, parentCandidates } from '@shared/flow';
 import AssigneeFields from './AssigneeFields.js';
 import ScopeFields from './ScopeFields.js';
 import WorkspaceField from './WorkspaceField.js';
 import Toggle from './Toggle.js';
 import { formatWhen, fromLocalInput, toLocalInput } from './time.js';
+import { Escutcheon } from './heraldry.js';
 
 interface Props {
   card: Card;
@@ -31,6 +33,8 @@ interface Props {
   onPatchConfig: (patch: Partial<CardAgentConfig>) => void;
   /** Setting or clearing a schedule can also move the card in or out of SCHEDULED. */
   onSetSchedule: (scheduledAt: string | null) => void;
+  /** Retry (BLOCKED → READY) and Approve (REVIEW → DONE), as on the card. */
+  onMove: (to: FlowKey) => void;
   onDelete: () => void;
   onDispatch: () => void;
   onCancel: () => void;
@@ -62,6 +66,7 @@ export default function CardDetail({
   onPatchCard,
   onPatchConfig,
   onSetSchedule,
+  onMove,
   onDelete,
   onDispatch,
   onCancel,
@@ -70,6 +75,10 @@ export default function CardDetail({
 }: Props): React.JSX.Element {
   const [showTranscript, setShowTranscript] = useState(false);
   const [newSession, setNewSession] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // A question asked about one card must not carry over to the next.
+  useEffect(() => setConfirmDelete(false), [card.id]);
 
   const columns = sortedColumns(board);
   const columnTitle = (id: string): string => board.columns.find((c) => c.id === id)?.title ?? '';
@@ -93,13 +102,14 @@ export default function CardDetail({
   const scheduleInPast = Boolean(card.scheduledAt && Date.parse(card.scheduledAt) <= Date.now());
 
   return (
-    <div className="panel">
+    <aside className="panel" aria-label="Task details">
       <div className="panel-head">
-        <h2>Card</h2>
-        <span className="chip">{columnTitle(card.columnId)}</span>
+        <Escutcheon agentId={card.config.agentId} priority={card.priority} />
+        <h2>Task</h2>
+        <span className="chip station-chip">{columnTitle(card.columnId)}</span>
         <span className="spacer" />
-        <button type="button" className="ghost" onClick={onClose} title="Close panel">
-          ✕
+        <button type="button" className="icon-button" onClick={onClose} aria-label="Close the panel" title="Close the panel">
+          <X size={18} aria-hidden="true" />
         </button>
       </div>
 
@@ -163,7 +173,7 @@ export default function CardDetail({
                     {s.nativeSessionId ? ' ·  resumable' : ''}
                   </option>
                 ))}
-                <option value="__new__">+ New session…</option>
+                <option value="__new__">Add a new session…</option>
               </select>
             ) : (
               <div className="row">
@@ -403,8 +413,21 @@ export default function CardDetail({
       </div>
 
       <div className="panel-foot">
+        {key === 'review' && !isRunning ? (
+          <button type="button" className="approve" onClick={() => onMove('done')} title="Accept the work and move it to DONE">
+            <Check size={16} aria-hidden="true" />
+            Approve
+          </button>
+        ) : null}
+        {key === 'blocked' && !isRunning ? (
+          <button type="button" onClick={() => onMove('ready')} title="Move to READY; it starts again by itself">
+            <RotateCcw size={16} aria-hidden="true" />
+            Retry
+          </button>
+        ) : null}
         {isRunning ? (
           <button type="button" className="danger" onClick={onCancel}>
+            <Square size={14} aria-hidden="true" />
             {card.goal?.status === 'running' ? 'Stop goal' : 'Cancel run'}
           </button>
         ) : (
@@ -421,14 +444,28 @@ export default function CardDetail({
                   : 'Run this card now'
             }
           >
+            <Play size={15} aria-hidden="true" />
             {waiting ? 'Send when parent is done' : 'Send to Agent'}
           </button>
         )}
-        <span style={{ flex: 1 }} />
-        <button type="button" className="danger" onClick={onDelete}>
-          Delete card
-        </button>
+        <span className="spacer" />
+        {confirmDelete ? (
+          <div className="inline-confirm" role="alert">
+            <span>Delete this card and its run history?</span>
+            <button type="button" className="danger solid" onClick={onDelete}>
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmDelete(false)} autoFocus>
+              Keep
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="danger" onClick={() => setConfirmDelete(true)}>
+            <Trash size={15} aria-hidden="true" />
+            Delete card
+          </button>
+        )}
       </div>
-    </div>
+    </aside>
   );
 }

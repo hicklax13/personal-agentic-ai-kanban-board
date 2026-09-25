@@ -49,16 +49,45 @@ npm run dev
 | REVIEW | Finished — check the result |
 | DONE | Accepted. Cards waiting on this one move to READY |
 
-Add, rename and delete columns; add, edit, move and delete cards; drag a card anywhere.
+**How it looks.** The board is drawn like a coat of arms on a black field. The eight columns
+are stations on one gold rail: each station's shield shows how many cards it holds (READY's is
+gold; RUNNING turns blue, BLOCKED red, REVIEW purple and DONE green when they hold cards, each
+with its heraldic hatching so the states differ by pattern too), and a line under its name says
+its state at a glance ("3 live", "1 to fix", "2 to approve"). Every card shows a small shield
+for its agent — a colour, a pattern and a letter, so agents can be told apart without relying on
+colour — plus its model, what it is doing right now, and its **next stop**: where it goes next
+and what gets it there (a person icon means it is waiting for you). Select a card and its
+station lights up, the rail traces the way to its next stop in gold, and its parent and child
+cards are outlined in silver.
+
+On a smaller screen, when there is live work to keep in view, the quieter stations (DONE,
+TRIAGE, SCHEDULED, then TODO) fold down to their shield and name so READY, RUNNING, BLOCKED and
+REVIEW stay on screen. Click a folded station to open it; you can still drop cards on it. The
+**⋯** button at the foot of each station renames, folds or deletes it (deleting asks first, and
+its cards move to the first station).
+
+The status line at the top counts what is running, ready, blocked and waiting for review; click
+one to jump to that station. Nothing on the board animates on a loop: a running card shows a
+ticking clock and its latest line, and its thin blue bar flashes once when new output arrives. **Ctrl K** searches titles, descriptions, models and agents (cards
+that do not match fade out). **Approve** on a REVIEW card and **Retry** on a BLOCKED card move it
+on in one click. From the keyboard, **Enter** opens a card and **Space** picks it up to move it.
+Text is set in Atkinson Hyperlegible (made for easy reading), station names in Cinzel's Roman
+capitals; both are bundled with the app. Put your own logo in `data/brand/` (see below) and it
+leads the top bar and becomes the window icon; without one the app shows a plain gold shield.
+
+Add, rename and delete columns; add, edit, move and delete cards (deleting asks first, inside the
+app); drag a card anywhere.
 Everything saves automatically and survives a restart. A board from an older version is
 upgraded in place (Backlog → TODO, In Progress → RUNNING, In Review → REVIEW, Done → DONE, no
 card moves) and the original file is kept as `board.v1-backup.json`.
 
-**New task popup.** **+ New task** on any column opens it. Only the title is required:
+**New task popup.** The gold **New task** button at the top opens it, as does **New task** at
+the foot of any column. Only the title is required:
 
 | Field | What it does |
 | --- | --- |
 | Title, Description | The task. In Goal mode these are what the judge checks, so say what "done" means |
+| Start in | The column it starts in (TODO from the top button, else the column you clicked). READY starts it by itself |
 | Priority | Low to Urgent; higher starts first when several tasks are READY |
 | Workspace | The board folder, a folder of its own, or a new **git worktree** (own branch, under `<repo>/.worktrees/<id>`, kept afterwards) |
 | Assignee | An account (ChatGPT via Codex, Claude via Claude Code), a connection (Hermes, Ollama, LM Studio) or an API key (via Hermes) |
@@ -169,6 +198,7 @@ Running unpackaged (`npx electron .`), everything stays inside the project folde
 | `data/settings.json` | Endpoint URLs, each provider's default model and effort, and the judge |
 | `data/secrets.enc.json` | API keys, encrypted |
 | `data/board.v1-backup.json` | Only after an upgrade: the board as it was before |
+| `data/brand/` | Optional: your own logo as `crest.png`, `crest.webp` or `crest.jpg` (a tall image on black works best), and `crest-icon.png` (256×256) for the window icon |
 
 A packaged build uses the platform's standard application-data directory instead. Set
 `AGENT_KANBAN_DATA_DIR` to override either. Electron writes its own Chromium caches under the
@@ -188,6 +218,14 @@ npm run build       # build main, preload and renderer
 npm start           # preview the built app
 npm test            # run the test suite
 npm run typecheck   # typecheck both processes
+```
+
+To work on the look without Electron, run the real interface in a browser with sample data (it
+shows your logo from `data/brand/` if there is one), then open
+`http://localhost:5199/preview.html`:
+
+```bash
+npx vite --config vite.preview.config.ts
 ```
 
 Three verification modes are built into the app itself. Point `AGENT_KANBAN_DATA_DIR` at a

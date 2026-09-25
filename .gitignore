@@ -14,6 +14,12 @@ ENGINEERING_REPORT.md
 # State that coding-agent tools write into whatever folder they run in.
 .omc/
 .claude/settings.local.json
+.playwright-mcp/
+
+# Design-review screenshots show the owner's private crest; the question
+# pages' state is a local helper server's, not a record.
+.impeccable/review/
+.impeccable/questions/
 
 # Secrets must never be committed.
 .env

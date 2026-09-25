@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
-import { existsSync } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import type {
@@ -7,6 +7,7 @@ import type {
   AgentTestResult,
   AppSettings,
   BoardState,
+  BrandAssets,
   Card,
   CardPatchUpdate,
   CardWorkflowPatch,
@@ -89,6 +90,17 @@ const userData = process.env.AGENT_KANBAN_DATA_DIR
 const BOARD_PATH = join(userData, 'board.json');
 const SECRETS_PATH = join(userData, 'secrets.enc.json');
 const SETTINGS_PATH = join(userData, 'settings.json');
+/**
+ * The owner's private brand (the crest). It lives beside the board data, which
+ * is git-ignored, because the crest carries a family name and the repository
+ * is public. Without it the app shows a plain shield.
+ */
+const BRAND_DIR = join(userData, 'brand');
+const BRAND_FILES: [string, string][] = [
+  ['crest.png', 'image/png'],
+  ['crest.webp', 'image/webp'],
+  ['crest.jpg', 'image/jpeg'],
+];
 
 /**
  * Default working folder handed to agents when a card does not set its own.
@@ -744,6 +756,18 @@ function registerIpc(): void {
     return picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0];
   });
 
+  ipcMain.handle(IPC.brandGet, async (): Promise<BrandAssets> => {
+    for (const [file, mime] of BRAND_FILES) {
+      try {
+        const bytes = await fs.readFile(join(BRAND_DIR, file));
+        return { crest: `data:${mime};base64,${bytes.toString('base64')}` };
+      } catch {
+        // Not this format; try the next.
+      }
+    }
+    return { crest: null };
+  });
+
   ipcMain.handle(IPC.gitRepoInfo, async (_e, path: string): Promise<GitRepoInfo> => {
     if (typeof path !== 'string' || !path.trim()) return { ok: false, error: 'No folder chosen.' };
     const repo = await repoRootOf(path.trim(), git);
@@ -756,14 +780,18 @@ function registerIpc(): void {
 // ---------------------------------------------------------------------------
 
 function createWindow(): void {
+  // The owner's crest doubles as the window and taskbar icon when installed.
+  const crestIcon = join(BRAND_DIR, 'crest-icon.png');
   mainWindow = new BrowserWindow({
     width: 1500,
     height: 950,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#0f1115',
+    // The field colour, so the window never flashes a different shade while loading.
+    backgroundColor: '#070708',
     show: false,
     title: 'Agent Kanban',
+    ...(existsSync(crestIcon) ? { icon: crestIcon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // A self-test drives a window nobody is looking at; keep it painting.

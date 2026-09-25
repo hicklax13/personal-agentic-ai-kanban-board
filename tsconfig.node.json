@@ -19,5 +19,16 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "shared/**/*.ts", "tests/**/*.ts", "electron.vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "shared/**/*.ts",
+    "tests/**/*.ts",
+    "src/renderer/components/nextStop.ts",
+    "src/renderer/components/search.ts",
+    "src/renderer/components/stationLayout.ts",
+    "src/renderer/components/time.ts",
+    "electron.vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

@@ -546,6 +546,7 @@ export const IPC = {
   settingsSetJudge: 'settings:setJudge',
   pickFolder: 'dialog:pickFolder',
   gitRepoInfo: 'git:repoInfo',
+  brandGet: 'brand:get',
 
   /** main -> renderer stream of run updates. */
   runUpdate: 'run:update',
@@ -591,6 +592,15 @@ export interface GitRepoInfo {
   /** Top folder of the repository, when `path` is inside one. */
   root?: string;
   error?: string;
+}
+
+/**
+ * The owner's private brand assets, read from the git-ignored `data/brand/`
+ * folder. They never live in the repository: the crest carries a family name.
+ */
+export interface BrandAssets {
+  /** The crest as a data: URL, or null when none is installed (the app shows a plain shield). */
+  crest: string | null;
 }
 
 /** Payload pushed to the renderer as a run progresses. */
@@ -649,6 +659,7 @@ export interface RendererApi {
   /** Native folder picker; null when cancelled. */
   pickFolder(defaultPath?: string | null): Promise<string | null>;
   gitRepoInfo(path: string): Promise<GitRepoInfo>;
+  getBrand(): Promise<BrandAssets>;
 
   onRunUpdate(cb: (u: RunUpdate) => void): () => void;
   onCardPatch(cb: (u: CardPatchUpdate) => void): () => void;

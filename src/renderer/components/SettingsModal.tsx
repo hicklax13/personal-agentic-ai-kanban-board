@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { CircleCheck, CircleX, RefreshCw, X } from 'lucide-react';
 import type {
   AccountProvider,
   AccountStatus,
@@ -16,8 +17,11 @@ import { AGENT_DEFAULT_PROVIDER } from '@shared/runSettings';
 import ProviderPicker, { HermesDefaultPicker } from './ProviderPicker.js';
 import EnvironmentPanel from './EnvironmentPanel.js';
 import JudgePanel from './JudgePanel.js';
+import { Crest } from './heraldry.js';
 
 interface Props {
+  /** The tab to open on. */
+  initialTab?: SettingsTab;
   settings: AppSettings;
   discovery: DiscoveryReport | null;
   onClose: () => void;
@@ -62,15 +66,34 @@ function ModelsBar({
           setBusy(false);
         }}
       >
+        <RefreshCw size={14} aria-hidden="true" />
         {busy ? 'Refreshing…' : 'Refresh model lists'}
       </button>
     </div>
   );
 }
 
-type Tab = 'accounts' | 'connections' | 'credentials' | 'judge' | 'environment';
+export type SettingsTab = 'accounts' | 'connections' | 'credentials' | 'judge' | 'environment';
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'connections', label: 'Connections' },
+  { id: 'credentials', label: 'Credentials' },
+  { id: 'judge', label: 'Judge' },
+  { id: 'environment', label: 'Environment' },
+];
+
+/** A result mark drawn as an icon: a tick for success, a cross for failure. */
+function ResultMark({ ok }: { ok: boolean }): React.JSX.Element {
+  return ok ? (
+    <CircleCheck className="inline-icon ok" size={14} aria-label="Succeeded" />
+  ) : (
+    <CircleX className="inline-icon fail" size={14} aria-label="Failed" />
+  );
+}
 
 export default function SettingsModal({
+  initialTab = 'accounts',
   settings,
   discovery,
   onClose,
@@ -83,7 +106,16 @@ export default function SettingsModal({
   onSetProviderDefault,
   onSaveJudge,
 }: Props): React.JSX.Element {
-  const [tab, setTab] = useState<Tab>('accounts');
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard focus moves into the dialog (so Escape closes it) and goes back
+  // to whatever opened it afterwards.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
   const [endpoints, setEndpoints] = useState<EndpointSettings>(settings.endpoints);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [tests, setTests] = useState<Record<string, AgentTestResult | 'running'>>({});
@@ -102,50 +134,41 @@ export default function SettingsModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="modal settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+        }}
+      >
         <div className="panel-head">
-          <h2>Settings</h2>
-          <button
-            type="button"
-            className={tab === 'accounts' ? 'primary' : 'ghost'}
-            onClick={() => setTab('accounts')}
-          >
-            Accounts
-          </button>
-          <button
-            type="button"
-            className={tab === 'connections' ? 'primary' : 'ghost'}
-            onClick={() => setTab('connections')}
-          >
-            Connections
-          </button>
-          <button
-            type="button"
-            className={tab === 'credentials' ? 'primary' : 'ghost'}
-            onClick={() => setTab('credentials')}
-          >
-            Credentials
-          </button>
-          <button
-            type="button"
-            className={tab === 'judge' ? 'primary' : 'ghost'}
-            onClick={() => setTab('judge')}
-          >
-            Judge
-          </button>
-          <button
-            type="button"
-            className={tab === 'environment' ? 'primary' : 'ghost'}
-            onClick={() => setTab('environment')}
-          >
-            Environment
-          </button>
-          <button type="button" className="ghost" onClick={onClose}>
-            ✕
+          <Crest height={30} />
+          <h2 id="settings-title">Settings</h2>
+          <div className="tabs" role="tablist" aria-label="Settings sections">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <span className="spacer" />
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close settings" title="Close settings">
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="panel-body">
+        <div className="panel-body" role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
           {tab === 'accounts' ? (
             <>
               <ModelsBar discovery={discovery} onRefresh={onRefreshCatalog} />
@@ -212,7 +235,7 @@ export default function SettingsModal({
                           {a.remediation ? <div className="sr-fix">Fix: {a.remediation}</div> : null}
                           {result && result !== 'running' ? (
                             <div className={result.ok ? 'sr-detail' : 'sr-fix'}>
-                              {result.ok ? '✔' : '✘'} {result.detail} ({result.durationMs} ms)
+                              <ResultMark ok={result.ok} /> {result.detail} ({result.durationMs} ms)
                             </div>
                           ) : null}
                           {a.id === 'hermes' ? (
@@ -370,6 +393,8 @@ function AccountsPanel({
   const [messages, setMessages] = useState<
     Partial<Record<AccountProvider, { ok: boolean; text: string }>>
   >({});
+  /** The account whose sign-out is waiting for a yes. */
+  const [confirmOut, setConfirmOut] = useState<AccountProvider | null>(null);
 
   const refresh = async (): Promise<void> => {
     setAccounts(await window.api.getAccounts());
@@ -381,12 +406,7 @@ function AccountsPanel({
   }, []);
 
   const act = async (provider: AccountProvider, action: 'in' | 'out'): Promise<void> => {
-    if (
-      action === 'out' &&
-      !window.confirm('Sign out? Runs for this agent will fail until you sign in again.')
-    ) {
-      return;
-    }
+    setConfirmOut(null);
     setBusy((b) => ({ ...b, [provider]: action }));
     setMessages((m) => ({ ...m, [provider]: undefined }));
     const result =
@@ -416,7 +436,7 @@ function AccountsPanel({
               <span className={`dot ${dot}`} style={{ marginTop: 4 }} />
               <div className="sr-main">
                 <div className="sr-name">
-                  {a.label} <span style={{ fontWeight: 400, opacity: 0.7 }}>· via {a.via}</span>
+                  {a.label} <span className="sr-via">· via {a.via}</span>
                 </div>
                 <div className="sr-detail">
                   {a.signedIn ? `Signed in with ${a.method}` : a.detail}
@@ -433,7 +453,7 @@ function AccountsPanel({
                 ) : null}
                 {message ? (
                   <div className={message.ok ? 'sr-detail' : 'sr-fix'}>
-                    {message.ok ? '✔' : '✘'} {message.text}
+                    <ResultMark ok={message.ok} /> {message.text}
                   </div>
                 ) : null}
                 <ProviderPicker
@@ -445,7 +465,6 @@ function AccountsPanel({
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button
                   type="button"
-                  className={a.signedIn ? '' : 'primary'}
                   disabled={!a.available || Boolean(state)}
                   onClick={() => void act(a.provider, 'in')}
                 >
@@ -455,13 +474,24 @@ function AccountsPanel({
                   <button
                     type="button"
                     className="danger"
-                    disabled={Boolean(state)}
-                    onClick={() => void act(a.provider, 'out')}
+                    disabled={Boolean(state) || confirmOut === a.provider}
+                    onClick={() => setConfirmOut(a.provider)}
                   >
                     {state === 'out' ? 'Signing out…' : 'Sign out'}
                   </button>
                 ) : null}
               </div>
+              {confirmOut === a.provider ? (
+                <div className="inline-confirm row-confirm" role="alert">
+                  <span>Sign out? Runs for this agent will fail until you sign in again.</span>
+                  <button type="button" className="danger solid" onClick={() => void act(a.provider, 'out')}>
+                    Sign out
+                  </button>
+                  <button type="button" onClick={() => setConfirmOut(null)} autoFocus>
+                    Stay signed in
+                  </button>
+                </div>
+              ) : null}
             </div>
           );
         })}

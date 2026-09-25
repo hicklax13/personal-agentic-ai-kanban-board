@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FolderOpen, Plus, Search, Settings, X } from 'lucide-react';
 import type {
   AppSettings,
   BoardState,
@@ -19,17 +20,20 @@ import {
   deleteColumn,
   findCard,
   moveCard,
+  sortedColumns,
   uid,
   updateCard,
   updateCardConfig,
   updateColumn,
   upsertRun,
 } from '@shared/boardOps';
-import { flowColumn, flowKeyOf, placeNewCard } from '@shared/flow';
+import { type FlowKey, flowColumn, flowKeyOf, placeNewCard } from '@shared/flow';
 import Board from './components/Board.js';
 import CardDetail from './components/CardDetail.js';
 import NewTaskModal, { type TaskDraft } from './components/NewTaskModal.js';
-import SettingsModal from './components/SettingsModal.js';
+import SettingsModal, { type SettingsTab } from './components/SettingsModal.js';
+import { Crest, StationMark, type StationTone } from './components/heraldry.js';
+import { cardMatches, searchWords } from './components/search.js';
 
 declare global {
   interface Window {
@@ -38,18 +42,27 @@ declare global {
 }
 
 const SAVE_DEBOUNCE_MS = 400;
+/** How long a station stays pointed out after a click on the status line. */
+const FLASH_MS = 1400;
+/** The title a new board starts with; any other is the owner's and is shown. */
+const DEFAULT_BOARD_TITLE = 'Agent Board';
+
+const reducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export default function App(): React.JSX.Element {
   const [board, setBoard] = useState<BoardState | null>(null);
   const [discovery, setDiscovery] = useState<DiscoveryReport | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [newTaskColumnId, setNewTaskColumnId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(true);
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ kind: 'err' | 'info'; text: string } | null>(null);
+  const [query, setQuery] = useState('');
+  const [flashKey, setFlashKey] = useState<FlowKey | null>(null);
 
+  const searchRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boardRef = useRef<BoardState | null>(null);
   boardRef.current = board;
@@ -181,6 +194,25 @@ export default function App(): React.JSX.Element {
     return () => window.removeEventListener('beforeunload', flush);
   }, []);
 
+  // Ctrl+K goes to the search box from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!flashKey) return;
+    const timer = setTimeout(() => setFlashKey(null), FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [flashKey]);
+
   // ------------------------------------------------------------- handlers
   const selectedCard: Card | null = useMemo(
     () => (board && selectedCardId ? (findCard(board, selectedCardId) ?? null) : null),
@@ -189,12 +221,12 @@ export default function App(): React.JSX.Element {
 
   const agentsById = useMemo(() => new Map((discovery?.agents ?? []).map((a) => [a.id, a])), [discovery]);
 
-  const handleCreateTask = (draft: TaskDraft): void => {
+  const handleCreateTask = (draft: TaskDraft, requestedColumnId: string): void => {
     const current = boardRef.current;
-    if (!current || !newTaskColumnId) return;
+    if (!current) return;
     // A future schedule waits in SCHEDULED and an unfinished parent in TODO,
-    // whichever column "+ New task" was clicked in.
-    const columnId = placeNewCard(current, newTaskColumnId, draft, new Date());
+    // whichever column the task was started in.
+    const columnId = placeNewCard(current, requestedColumnId, draft, new Date());
     const id = uid();
     mutate((prev) => addCard(prev, columnId, { id, ...draft }));
     setNewTaskColumnId(null);
@@ -218,6 +250,14 @@ export default function App(): React.JSX.Element {
         next = moveCard(next, cardId, todo.id, Number.MAX_SAFE_INTEGER);
       }
       return next;
+    });
+  };
+
+  /** Retry and Approve: the same move as dragging the card to that station. */
+  const handleQuickMove = (cardId: string, to: FlowKey): void => {
+    mutate((prev) => {
+      const column = flowColumn(prev.columns, to);
+      return column ? moveCard(prev, cardId, column.id, Number.MAX_SAFE_INTEGER) : prev;
     });
   };
 
@@ -247,70 +287,181 @@ export default function App(): React.JSX.Element {
     setScanning(false);
   };
 
+  /** Bring a station into view and point it out. */
+  const goToStation = (key: FlowKey): void => {
+    document
+      .getElementById(`station-${key}`)
+      ?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
+    setFlashKey(key);
+  };
+
   // ---------------------------------------------------------------- render
   if (!board || !settings) {
-    return <div className="empty-state">Loading board…</div>;
+    return (
+      <div className="loading" role="status">
+        <Crest height={132} />
+        <span>Opening the board…</span>
+      </div>
+    );
   }
 
+  const columnOf = (key: FlowKey): string | undefined => flowColumn(board.columns, key)?.id;
+  const countIn = (key: FlowKey): number => {
+    const id = columnOf(key);
+    return id ? board.cards.filter((c) => c.columnId === id).length : 0;
+  };
+  // Live work: cards in RUNNING, plus any run going elsewhere.
+  const liveCount = board.cards.filter(
+    (c) => c.columnId === columnOf('running') || running.has(c.id) || c.goal?.status === 'running',
+  ).length;
+  const readyCount = countIn('ready');
+  const blockedCount = countIn('blocked');
+  const reviewCount = countIn('review');
+
+  // Each state wears its station's tincture, and its own word.
+  const statusPills: { key: FlowKey; count: number; label: string; tone: StationTone }[] = [
+    { key: 'ready', count: readyCount, label: 'ready', tone: 'or' },
+    { key: 'blocked', count: blockedCount, label: 'blocked', tone: blockedCount ? 'gules' : 'plain' },
+    { key: 'review', count: reviewCount, label: 'to review', tone: reviewCount ? 'purpure' : 'plain' },
+  ];
+
   const availableAgents = (discovery?.agents ?? []).filter((a) => a.availability === 'available');
-  const goalsRunning = board.cards.filter((c) => c.goal?.status === 'running' && !running.has(c.id)).length;
+  const words = searchWords(query);
+  const matchCount = board.cards.filter((c) =>
+    cardMatches(c, words, c.config.agentId ? (agentsById.get(c.config.agentId)?.name ?? c.config.agentId) : ''),
+  ).length;
+  const newTaskColumn = columnOf('todo') ?? sortedColumns(board)[0]?.id ?? null;
 
   return (
     <div className="app">
-      <div className="topbar">
-        <h1>{board.boardTitle}</h1>
-        <span className="chip" title="Cards on this board">
-          {board.cards.length} cards
-        </span>
-        {scanning ? (
-          <span className="chip pulsing">scanning environment…</span>
-        ) : (
-          <span className="chip" title={discovery?.agents.map((a) => a.name).join(', ')}>
-            <span className={`dot ${availableAgents.length > 0 ? 'available' : 'degraded'}`} />
-            {availableAgents.length} of {discovery?.agents.length ?? 0} agents ready
-          </span>
-        )}
-        {running.size + goalsRunning > 0 ? (
-          <span className="chip st-running pulsing">{running.size + goalsRunning} running</span>
-        ) : null}
+      <header className="topbar">
+        <div className="brand">
+          <Crest height={58} />
+          <h1 className="brand-name">
+            Agent Kanban
+            {board.boardTitle && board.boardTitle !== DEFAULT_BOARD_TITLE ? <span>{board.boardTitle}</span> : null}
+          </h1>
+        </div>
+
+        <nav className="status" aria-label="Board status">
+          <button
+            type="button"
+            className={`status-pill${liveCount ? ' live' : ' zero'}`}
+            onClick={() => goToStation('running')}
+            title="Show RUNNING"
+          >
+            <span className={`live-dot${liveCount ? '' : ' idle'}`} aria-hidden="true" />
+            <b>{liveCount}</b>
+            <span className="status-label">running</span>
+          </button>
+          {statusPills.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`status-pill tone-${p.tone}${p.count ? '' : ' zero'}`}
+              onClick={() => goToStation(p.key)}
+              title={`Show ${p.key.toUpperCase()}`}
+            >
+              <StationMark tone={p.tone} />
+              <b>{p.count}</b>
+              <span className="status-label">{p.label}</span>
+            </button>
+          ))}
+          <span className="status-rule" aria-hidden="true" />
+          <button
+            type="button"
+            className="status-pill"
+            onClick={() => setSettingsTab('connections')}
+            title={scanning ? 'Checking which agents are set up' : discovery?.agents.map((a) => `${a.name}: ${a.statusDetail}`).join('\n')}
+          >
+            {scanning ? (
+              <>
+                <span className="live-dot scanning" aria-hidden="true" />
+                <span className="status-label">Checking agents…</span>
+              </>
+            ) : (
+              <>
+                <span className={`dot ${availableAgents.length > 0 ? 'available' : 'degraded'}`} aria-hidden="true" />
+                <b>{availableAgents.length}</b>
+                <span className="status-label">of {discovery?.agents.length ?? 0} agents ready</span>
+              </>
+            )}
+          </button>
+        </nav>
 
         <span className="spacer" />
 
-        <button type="button" onClick={() => void window.api.revealBoardFile()}>
-          Show board file
+        <div className="search" role="search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            ref={searchRef}
+            value={query}
+            placeholder="Find a task"
+            aria-label="Find a task"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setQuery('');
+                e.currentTarget.blur();
+              }
+            }}
+          />
+          {query ? (
+            <>
+              <span className="search-count" aria-live="polite">
+                {matchCount} found
+              </span>
+              <button type="button" className="search-clear" aria-label="Clear the search" onClick={() => setQuery('')}>
+                <X size={14} aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <kbd aria-hidden="true">Ctrl K</kbd>
+          )}
+        </div>
+
+        <button type="button" className="primary new-task" disabled={!newTaskColumn} onClick={() => setNewTaskColumnId(newTaskColumn)}>
+          <Plus size={17} aria-hidden="true" />
+          New task
         </button>
-        <button type="button" onClick={() => setShowSettings(true)}>
-          Settings
+        <button
+          type="button"
+          className="band-button"
+          onClick={() => void window.api.revealBoardFile()}
+          title="Show the board file in its folder"
+        >
+          <FolderOpen size={18} aria-hidden="true" />
+          <span className="band-label">Board file</span>
         </button>
-      </div>
+        <button type="button" className="band-button" onClick={() => setSettingsTab('accounts')} title="Settings">
+          <Settings size={18} aria-hidden="true" />
+          <span className="band-label">Settings</span>
+        </button>
+      </header>
 
       {toast ? (
-        <div className={`banner ${toast.kind}`} style={{ margin: '10px 14px 0' }}>
-          {toast.text}
-          <button type="button" className="ghost" style={{ float: 'right' }} onClick={() => setToast(null)}>
-            ✕
+        <div className={`banner toast ${toast.kind}`} role={toast.kind === 'err' ? 'alert' : 'status'}>
+          <span>{toast.text}</span>
+          <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast(null)}>
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       ) : null}
 
-      <div className="main">
+      <main className="main">
         <Board
           board={board}
           agentsById={agentsById}
           selectedCardId={selectedCardId}
+          query={query}
+          flashKey={flashKey}
           onSelectCard={setSelectedCardId}
           onMoveCard={(cardId, columnId, index) => mutate((prev) => moveCard(prev, cardId, columnId, index))}
+          onQuickMove={handleQuickMove}
           onAddCard={setNewTaskColumnId}
           onAddColumn={() => mutate((prev) => addColumn(prev, 'New column'))}
           onRenameColumn={(columnId, title) => mutate((prev) => updateColumn(prev, columnId, { title }))}
-          onDeleteColumn={(columnId) => {
-            const count = board.cards.filter((c) => c.columnId === columnId).length;
-            const message =
-              count > 0
-                ? `Delete this column? Its ${count} card(s) will move to the first column.`
-                : 'Delete this column?';
-            if (window.confirm(message)) mutate((prev) => deleteColumn(prev, columnId));
-          }}
+          onDeleteColumn={(columnId) => mutate((prev) => deleteColumn(prev, columnId))}
         />
 
         {selectedCard ? (
@@ -327,8 +478,8 @@ export default function App(): React.JSX.Element {
               mutate((prev) => updateCardConfig(prev, selectedCard.id, patch))
             }
             onSetSchedule={(scheduledAt) => handleSetSchedule(selectedCard.id, scheduledAt)}
+            onMove={(to) => handleQuickMove(selectedCard.id, to)}
             onDelete={() => {
-              if (!window.confirm('Delete this card and its run history?')) return;
               mutate((prev) => deleteCard(prev, selectedCard.id));
               setSelectedCardId(null);
             }}
@@ -342,7 +493,7 @@ export default function App(): React.JSX.Element {
             onClose={() => setSelectedCardId(null)}
           />
         ) : null}
-      </div>
+      </main>
 
       {newTaskColumnId ? (
         <NewTaskModal
@@ -355,11 +506,12 @@ export default function App(): React.JSX.Element {
         />
       ) : null}
 
-      {showSettings ? (
+      {settingsTab ? (
         <SettingsModal
+          initialTab={settingsTab}
           settings={settings}
           discovery={discovery}
-          onClose={() => setShowSettings(false)}
+          onClose={() => setSettingsTab(null)}
           onSaveEndpoints={async (endpoints: EndpointSettings) => {
             setSettings(await window.api.setEndpoints(endpoints));
           }}

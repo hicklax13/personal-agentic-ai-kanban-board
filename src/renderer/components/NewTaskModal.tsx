@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import type {
   AppSettings,
   BoardState,
@@ -16,6 +17,7 @@ import WorkspaceField from './WorkspaceField.js';
 import Toggle from './Toggle.js';
 import { buildAssignees, keyForConfig } from './assignees.js';
 import { formatWhen, fromLocalInput, toLocalInput } from './time.js';
+import { Crest } from './heraldry.js';
 
 export interface TaskDraft {
   title: string;
@@ -29,12 +31,12 @@ export interface TaskDraft {
 
 interface Props {
   board: BoardState;
-  /** The column whose "+ New task" was clicked. */
+  /** Where the task starts unless changed here: the column whose "New task" was clicked. */
   columnId: string;
   discovery: DiscoveryReport | null;
   settings: AppSettings;
   onCancel: () => void;
-  onCreate: (draft: TaskDraft) => void;
+  onCreate: (draft: TaskDraft, columnId: string) => void;
 }
 
 const PRIORITY_LABEL: Record<Priority, string> = {
@@ -55,7 +57,7 @@ const PRIORITY_LABEL: Record<Priority, string> = {
  */
 export default function NewTaskModal({
   board,
-  columnId,
+  columnId: initialColumnId,
   discovery,
   settings,
   onCancel,
@@ -83,11 +85,16 @@ export default function NewTaskModal({
   const [parentId, setParentId] = useState<string>('');
   const [scheduleInput, setScheduleInput] = useState('');
   const [goalMode, setGoalMode] = useState(false);
+  const [columnId, setColumnId] = useState(initialColumnId);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => titleRef.current?.focus(), []);
+  // Focus starts in the title and returns to whatever opened the popup.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    titleRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
 
-  const column = board.columns.find((c) => c.id === columnId);
   const columns = sortedColumns(board);
   const columnTitle = (id: string): string => board.columns.find((c) => c.id === id)?.title ?? '';
 
@@ -151,7 +158,7 @@ export default function NewTaskModal({
       parentId: parentId || null,
       scheduledAt,
       goalMode,
-    });
+    }, columnId);
   };
 
   return (
@@ -159,6 +166,7 @@ export default function NewTaskModal({
       <div
         className="modal task-modal"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="task-modal-title"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -167,10 +175,11 @@ export default function NewTaskModal({
         }}
       >
         <div className="panel-head">
-          <h2 id="task-modal-title">New task in {column?.title ?? 'the board'}</h2>
+          <Crest height={30} />
+          <h2 id="task-modal-title">New task</h2>
           <span className="spacer" />
-          <button type="button" className="ghost" onClick={onCancel} title="Close">
-            ✕
+          <button type="button" className="icon-button" onClick={onCancel} aria-label="Close" title="Close">
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -204,6 +213,17 @@ export default function NewTaskModal({
 
           <div className="task-grid">
             <div className="field">
+              <label htmlFor="task-column">Start in</label>
+              <select id="task-column" value={columnId} onChange={(e) => setColumnId(e.target.value)}>
+                {columns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+              <div className="hint">READY starts the task by itself. TODO waits for you.</div>
+            </div>
+            <div className="field">
               <label htmlFor="task-priority">Priority</label>
               <select id="task-priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
                 {PRIORITIES.map((p) => (
@@ -214,13 +234,15 @@ export default function NewTaskModal({
               </select>
               <div className="hint">Higher priority starts first when several tasks are READY.</div>
             </div>
-            <WorkspaceField
-              idPrefix="task"
-              mode={workspace.mode}
-              path={workspace.path}
-              boardFolder={board.workspaceRoot}
-              onChange={setWorkspace}
-            />
+            <div className="span-2">
+              <WorkspaceField
+                idPrefix="task"
+                mode={workspace.mode}
+                path={workspace.path}
+                boardFolder={board.workspaceRoot}
+                onChange={setWorkspace}
+              />
+            </div>
           </div>
 
           <AssigneeFields
@@ -319,7 +341,7 @@ export default function NewTaskModal({
           <button type="button" className="ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="primary" disabled={!canCreate} onClick={submit}>
+          <button type="button" className="primary" disabled={!canCreate} onClick={submit} title="Create task (Ctrl+Enter)">
             Create task
           </button>
         </div>

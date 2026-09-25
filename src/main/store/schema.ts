@@ -123,7 +123,7 @@ export function createDefaultBoard(workspaceRoot: string | null): BoardState {
     description:
       'Select this card, choose who does it (an account, a connection or an API key) in the ' +
       'right-hand panel, then press "Send to Agent". The reply streams back onto the card. ' +
-      'Use "+ New task" on any column to add work: cards in READY start by themselves, a ' +
+      'Use "New task" (the gold button at the top, or the foot of any column) to add work: cards in READY start by themselves, a ' +
       'card with a parent waits in TODO until the parent is DONE, and a scheduled card waits ' +
       'in SCHEDULED. Agents, models, tools, MCP servers, plugins and skills are all discovered ' +
       'from this machine at startup — nothing is hard-coded.',

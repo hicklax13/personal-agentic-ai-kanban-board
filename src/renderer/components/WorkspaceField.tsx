@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CircleCheck, CircleX, FolderOpen } from 'lucide-react';
 import type { GitRepoInfo, WorkspaceMode } from '@shared/types';
 
 interface Props {
@@ -69,6 +70,7 @@ export default function WorkspaceField({ idPrefix, mode, path, boardFolder, onCh
             onChange={(e) => onChange({ mode, path: e.target.value || null })}
           />
           <button type="button" style={{ flex: '0 0 auto' }} onClick={() => void browse()}>
+            <FolderOpen size={15} aria-hidden="true" />
             Browse…
           </button>
         </div>
@@ -80,11 +82,15 @@ export default function WorkspaceField({ idPrefix, mode, path, boardFolder, onCh
           <div className="hint">Checking the folder…</div>
         ) : repo.ok ? (
           <div className="hint">
-            ✔ Git repository {repo.root}. The task gets its own branch and a checkout in{' '}
+            <CircleCheck className="inline-icon ok" size={14} aria-hidden="true" /> Git repository {repo.root}. The
+            task gets its own branch and a checkout in{' '}
             <code className="inline">.worktrees</code> there, kept after it finishes.
           </div>
         ) : (
-          <div className="hint warn">✘ {repo.error} A worktree needs a git repository.</div>
+          <div className="hint warn">
+            <CircleX className="inline-icon fail" size={14} aria-hidden="true" /> {repo.error} A worktree needs a git
+            repository.
+          </div>
         )
       ) : null}
     </div>

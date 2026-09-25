@@ -11,6 +11,7 @@ import type {
   BoardState,
   Card,
   CardAgentConfig,
+  CardWorkflowPatch,
   ChatSession,
   Column,
   Priority,
@@ -25,7 +26,7 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function uid(): string {
+export function uid(): string {
   // crypto.randomUUID exists in both Electron's renderer and modern Node.
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();
@@ -138,19 +139,28 @@ export function defaultConfig(overrides: Partial<CardAgentConfig> = {}): CardAge
     allowedSkills: [],
     chatSessionId: null,
     taskPrompt: '',
+    workspaceMode: 'board',
     workingDirectory: null,
     ...overrides,
   };
 }
 
-export function addCard(
-  state: BoardState,
-  columnId: string,
-  fields: { title: string; description?: string; priority?: Priority; config?: Partial<CardAgentConfig> } ,
-): BoardState {
+export interface NewCardFields {
+  /** Chosen by the caller when it needs to know the id before the state updates. */
+  id?: string;
+  title: string;
+  description?: string;
+  priority?: Priority;
+  config?: Partial<CardAgentConfig>;
+  parentId?: string | null;
+  scheduledAt?: string | null;
+  goalMode?: boolean;
+}
+
+export function addCard(state: BoardState, columnId: string, fields: NewCardFields): BoardState {
   const ts = nowIso();
   const card: Card = {
-    id: uid(),
+    id: fields.id ?? uid(),
     columnId,
     title: fields.title,
     description: fields.description ?? '',
@@ -162,6 +172,12 @@ export function addCard(
     runs: [],
     createdAt: ts,
     updatedAt: ts,
+    parentId: fields.parentId ?? null,
+    scheduledAt: fields.scheduledAt ?? null,
+    goalMode: fields.goalMode ?? false,
+    goal: null,
+    worktreePath: null,
+    blockedReason: null,
   };
   return touch({ ...state, cards: [...state.cards, card] });
 }
@@ -194,8 +210,33 @@ export function updateCardConfig(
   });
 }
 
+/**
+ * Remove a card. Cards that were waiting on it lose the link rather than keep
+ * pointing at nothing — they stay where they are for the user to decide.
+ */
 export function deleteCard(state: BoardState, cardId: string): BoardState {
-  return touch({ ...state, cards: state.cards.filter((c) => c.id !== cardId) });
+  return touch({
+    ...state,
+    cards: state.cards
+      .filter((c) => c.id !== cardId)
+      .map((c) => (c.parentId === cardId ? { ...c, parentId: null, updatedAt: nowIso() } : c)),
+  });
+}
+
+/**
+ * Apply a change the main process made on its own (a schedule firing, a
+ * parent finishing, a goal round). A column move lands at the end of the column.
+ */
+export function applyCardPatch(state: BoardState, cardId: string, patch: CardWorkflowPatch): BoardState {
+  const card = findCard(state, cardId);
+  if (!card) return state;
+  const { columnId, ...fields } = patch;
+  let next = state;
+  if (columnId && columnId !== card.columnId) {
+    next = moveCard(next, cardId, columnId, Number.MAX_SAFE_INTEGER);
+  }
+  if (Object.keys(fields).length > 0) next = updateCard(next, cardId, fields);
+  return next;
 }
 
 /**
@@ -276,10 +317,15 @@ export function latestRun(card: Card): AgentRun | undefined {
 // Chat sessions
 // ---------------------------------------------------------------------------
 
-export function addChatSession(state: BoardState, name: string, agentId: string | null): BoardState {
+export function addChatSession(
+  state: BoardState,
+  name: string,
+  agentId: string | null,
+  id: string = uid(),
+): BoardState {
   const ts = nowIso();
   const session: ChatSession = {
-    id: uid(),
+    id,
     name,
     agentId,
     nativeSessionId: null,

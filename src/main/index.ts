@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -7,24 +7,36 @@ import type {
   AgentTestResult,
   AppSettings,
   BoardState,
+  Card,
+  CardPatchUpdate,
+  CardWorkflowPatch,
   DiscoveryReport,
   DispatchRequest,
   EndpointSettings,
+  GitRepoInfo,
+  JudgeSettings,
+  LoadedBoard,
   ProviderDefault,
   RunUpdate,
   SecretKey,
 } from '@shared/types';
 import { IPC, SECRET_KEYS } from '@shared/types';
+import { applyCardPatch } from '@shared/boardOps';
+import { flowKeyOf, repairInterrupted } from '@shared/flow';
 import { createBoardStore } from './store/jsonStore.js';
+import { PatchLog } from './store/patchLog.js';
 import { makeCard } from './store/schema.js';
 import { SecretStore, passthroughCipher, type Cipher } from './secrets/secretStore.js';
-import { SettingsStore } from './settings.js';
+import { DEFAULT_JUDGE, SettingsStore } from './settings.js';
 import { refreshProviders, runDiscovery, type DiscoveryInput } from './discovery/index.js';
 import { MCP_SIGN_IN_ARGS, MCP_SIGN_IN_TERMINAL } from './discovery/mcpAgents.js';
 import { Dispatcher } from './dispatch/dispatcher.js';
-import { run as runProcess } from './discovery/proc.js';
+import { Orchestrator } from './dispatch/orchestrator.js';
+import { prepareWorkspace, repoRootOf, type GitRunner } from './dispatch/workspace.js';
+import { run as runProcess, which } from './discovery/proc.js';
 import {
   captureSettingsScreens,
+  captureTaskModal,
   isSmokeTest,
   runSmokeTest,
   SMOKE_TEST_SWITCHES,
@@ -138,6 +150,31 @@ async function getBoard(): Promise<BoardState> {
   return board;
 }
 
+const EMPTY_BOARD: BoardState = {
+  version: 2,
+  boardTitle: '',
+  workspaceRoot: null,
+  columns: [],
+  cards: [],
+  chatSessions: [],
+  updatedAt: '',
+};
+
+/**
+ * The one way the main process changes its copy of the board.
+ *
+ * `fn` runs synchronously on the newest copy and the result is queued for
+ * writing straight away. Reading a copy, awaiting something, then writing it
+ * back would silently drop any change made in between — and with runs, the
+ * workflow engine and the window all saving, "in between" happens.
+ */
+async function mutateBoard(fn: (current: BoardState) => BoardState): Promise<BoardState> {
+  await getBoard();
+  board = fn(board as BoardState);
+  await boardStore.write(board);
+  return board;
+}
+
 function publish(update: RunUpdate): void {
   mainWindow?.webContents.send(IPC.runUpdate, update);
 }
@@ -151,28 +188,41 @@ function publish(update: RunUpdate): void {
  * board would silently drop the other side's edit.
  */
 async function persistRunUpdate(update: RunUpdate): Promise<void> {
-  const current = await getBoard();
-  const cards = current.cards.map((card) => {
-    if (card.id !== update.cardId) return card;
-    const existing = card.runs.findIndex((r) => r.id === update.run.id);
-    const runs =
-      existing >= 0
-        ? card.runs.map((r, i) => (i === existing ? update.run : r))
-        : [...card.runs, update.run].slice(-25);
-    return {
-      ...card,
-      runs,
-      lastRunId: update.run.id,
-      columnId: update.moveToColumnId ?? card.columnId,
-      updatedAt: new Date().toISOString(),
-    };
-  });
-  board = { ...current, cards, updatedAt: new Date().toISOString() };
-  await boardStore.write(board);
+  await mutateBoard((current) => ({
+    ...current,
+    cards: current.cards.map((card) => {
+      if (card.id !== update.cardId) return card;
+      const existing = card.runs.findIndex((r) => r.id === update.run.id);
+      const runs =
+        existing >= 0
+          ? card.runs.map((r, i) => (i === existing ? update.run : r))
+          : [...card.runs, update.run].slice(-25);
+      return {
+        ...card,
+        runs,
+        lastRunId: update.run.id,
+        columnId: update.moveToColumnId ?? card.columnId,
+        updatedAt: new Date().toISOString(),
+      };
+    }),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+/** Workflow changes the window may not have seen yet; see PatchLog. */
+const patchLog = new PatchLog();
+
+/** Change a card's workflow fields (column, goal, worktree…): save, then tell the window. */
+async function patchCard(cardId: string, patch: CardWorkflowPatch): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
+  const seq = patchLog.record(cardId, patch);
+  await mutateBoard((current) => applyCardPatch(current, cardId, patch));
+  const update: CardPatchUpdate = { cardId, patch, seq };
+  mainWindow?.webContents.send(IPC.cardPatch, update);
 }
 
 const dispatcher = new Dispatcher({
-  getBoard: () => board ?? { version: 1, boardTitle: '', workspaceRoot: null, columns: [], cards: [], chatSessions: [], updatedAt: '' },
+  getBoard: () => board ?? EMPTY_BOARD,
   getAgent: (agentId) => discovery?.agents.find((a) => a.id === agentId) ?? null,
   endpoints: () => currentEndpoints,
   providerDefaults: () => currentProviderDefaults,
@@ -188,6 +238,36 @@ let currentEndpoints: EndpointSettings = {
 
 /** Loaded at startup and kept current on every save, so dispatch never waits on disk. */
 let currentProviderDefaults: Record<string, ProviderDefault> = {};
+let currentJudge: JudgeSettings = { ...DEFAULT_JUDGE };
+
+/** `git`, found once on PATH. Arguments go straight to the program, never through a shell. */
+let gitPath: string | null = null;
+const git: GitRunner = async (args, cwd) => {
+  gitPath ??= (await which('git')) ?? 'git';
+  const res = await runProcess(gitPath, args, { cwd, timeoutMs: 60_000 });
+  return { ok: res.ok, stdout: res.stdout, stderr: res.stderr || res.error || '' };
+};
+
+/**
+ * The workflow runs only in the real app. Self-tests may point at the owner's
+ * real board and must never start their agents or rearrange their cards.
+ */
+const workflowEnabled = !isSmokeTest(process.argv) && !process.argv.some((a) => a.startsWith('--dispatch-test'));
+
+const orchestrator = new Orchestrator({
+  getBoard: () => board ?? EMPTY_BOARD,
+  patchCard,
+  dispatcher,
+  judge: () => currentJudge,
+  prepareWorkspace: (card) => prepareWorkspace(card, board?.workspaceRoot ?? DEFAULT_WORKSPACE, git),
+  needsFolder: (agentId) => discovery?.agents.find((a) => a.id === agentId)?.transport !== 'http-rest',
+  ready: () => workflowEnabled && discovery !== null && board !== null,
+  now: () => new Date(),
+});
+
+/** How often the workflow looks for due schedules and READY cards. */
+const WORKFLOW_TICK_MS = 5_000;
+let workflowTimer: ReturnType<typeof setInterval> | null = null;
 
 // ---------------------------------------------------------------------------
 // Discovery
@@ -249,6 +329,7 @@ async function settingsSnapshot(): Promise<AppSettings> {
     secretsPath: SECRETS_PATH,
     boardPath: BOARD_PATH,
     providerDefaults: await settingsStore.readProviderDefaults(),
+    judge: await settingsStore.readJudge(),
   };
 }
 
@@ -435,7 +516,6 @@ async function runDispatchTest(agentIds: string[]): Promise<number> {
       error: run?.error ?? null,
       command: run?.command ?? null,
       persisted: Boolean(run),
-      movedColumn: persisted ? persisted.columnId !== columnId : false,
     };
     console.log(`DISPATCH_TEST ${JSON.stringify(line)}`);
     if (!result.ok) failures++;
@@ -453,6 +533,71 @@ const DISPATCH_TEST_MODELS: Record<string, string> = {
   lmstudio: 'local-model',
 };
 
+/**
+ * Let the real workflow run the board until it settles, then report every card.
+ *
+ * Like the dispatch check, this is the production path — the same orchestrator,
+ * dispatcher, adapters and persistence — so a passing run proves schedules,
+ * parents, READY auto-start and Goal mode work with real agents. Point
+ * `AGENT_KANBAN_DATA_DIR` at a prepared test board; never at a real one.
+ *
+ * Usage: electron . --flow-test=600   (seconds before giving up; default 600)
+ */
+async function runFlowTest(timeoutSeconds: number): Promise<void> {
+  await refreshDiscovery();
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const pending = (b: BoardState): Card[] =>
+    b.cards.filter((c) => {
+      const key = flowKeyOf(b.columns, c.columnId);
+      return (
+        orchestrator.isBusy(c.id) ||
+        key === 'running' ||
+        (key === 'ready' && Boolean(c.config.agentId)) ||
+        (key === 'scheduled' && Boolean(c.scheduledAt)) ||
+        (key === 'todo' && Boolean(c.parentId))
+      );
+    });
+
+  while (Date.now() < deadline) {
+    await orchestrator.tick();
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    if (pending(await getBoard()).length === 0) break;
+  }
+
+  const final = await createBoardStore(BOARD_PATH, DEFAULT_WORKSPACE).read();
+  const title = (id: string): string => final.columns.find((c) => c.id === id)?.title ?? id;
+  console.log(
+    `FLOW_TEST ${JSON.stringify({
+      settled: pending(final).length === 0,
+      cards: final.cards.map((c) => ({
+        title: c.title,
+        column: title(c.columnId),
+        goal: c.goal,
+        blockedReason: c.blockedReason,
+        worktreePath: c.worktreePath,
+        runs: c.runs.map((r) => ({
+          role: r.role ?? 'worker',
+          round: r.round ?? null,
+          agent: r.agentId,
+          model: r.model,
+          status: r.status,
+          verdict: r.verdict ?? null,
+          error: r.error,
+          output: r.output.trim().slice(-160),
+          startedAt: r.startedAt,
+        })),
+      })),
+    })}`,
+  );
+}
+
+function parseFlowTestArg(argv: string[]): number | null {
+  const flag = argv.find((a) => a.startsWith('--flow-test'));
+  if (!flag) return null;
+  const seconds = Number(flag.includes('=') ? flag.slice(flag.indexOf('=') + 1) : '');
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 600;
+}
+
 function parseDispatchTestArg(argv: string[]): string[] | null {
   const flag = argv.find((a) => a.startsWith('--dispatch-test'));
   if (!flag) return null;
@@ -468,24 +613,18 @@ function parseDispatchTestArg(argv: string[]): string[] | null {
 // ---------------------------------------------------------------------------
 
 function registerIpc(): void {
-  ipcMain.handle(IPC.boardLoad, async () => getBoard());
+  ipcMain.handle(IPC.boardLoad, async (): Promise<LoadedBoard> => ({
+    board: await getBoard(),
+    patchSeq: patchLog.latest,
+  }));
 
-  ipcMain.handle(IPC.boardSave, async (_e, next: BoardState) => {
+  ipcMain.handle(IPC.boardSave, async (_e, next: BoardState, seenSeq: number) => {
     try {
-      // Preserve run history from the main process's copy: the renderer's board
-      // can be a few hundred milliseconds stale while a run is streaming.
-      const current = await getBoard();
-      const runsById = new Map(current.cards.map((c) => [c.id, c.runs] as const));
-      const merged: BoardState = {
-        ...next,
-        cards: next.cards.map((c) => {
-          const authoritative = runsById.get(c.id);
-          if (!authoritative || authoritative.length <= c.runs.length) return c;
-          return { ...c, runs: authoritative };
-        }),
-      };
-      board = merged;
-      await boardStore.write(merged);
+      // The window's copy can be a few hundred milliseconds stale while a run is
+      // streaming or the workflow is moving cards; see mergeWindowSave.
+      await mutateBoard((current) => patchLog.merge(current, next, Number(seenSeq) || 0));
+      // A save can make a card due, unblocked or READY.
+      void orchestrator.tick();
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -576,16 +715,40 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.dispatchStart, async (_e, req: DispatchRequest) => {
-    const current = await getBoard();
-    // Dispatch from the main process's card, not the renderer's copy: it is the
-    // one that has been through schema validation.
-    const card = current.cards.find((c) => c.id === req.cardId) ?? req.card;
-    return dispatcher.start(card, req.workspaceRoot ?? current.workspaceRoot);
+    // The card is taken from the main process's copy, not the request: it is
+    // the one that has been through schema validation. The window saves before
+    // it asks, so the copy already holds the user's latest edits.
+    await getBoard();
+    await ensureDiscovery();
+    return orchestrator.startNow(req.cardId);
   });
 
   ipcMain.handle(IPC.dispatchCancel, async (_e, cardId: string) => ({
-    ok: dispatcher.cancel(cardId),
+    ok: orchestrator.cancel(cardId),
   }));
+
+  ipcMain.handle(IPC.settingsSetJudge, async (_e, value: JudgeSettings) => {
+    currentJudge = await settingsStore.setJudge(value);
+    return settingsSnapshot();
+  });
+
+  ipcMain.handle(IPC.pickFolder, async (_e, defaultPath?: string | null) => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose a folder',
+      properties: ['openDirectory', 'createDirectory'],
+      ...(defaultPath && existsSync(defaultPath) ? { defaultPath } : {}),
+    };
+    const picked = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options);
+    return picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0];
+  });
+
+  ipcMain.handle(IPC.gitRepoInfo, async (_e, path: string): Promise<GitRepoInfo> => {
+    if (typeof path !== 'string' || !path.trim()) return { ok: false, error: 'No folder chosen.' };
+    const repo = await repoRootOf(path.trim(), git);
+    return repo.ok ? { ok: true, root: repo.root } : { ok: false, error: repo.error };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -655,6 +818,14 @@ if (!app.requestSingleInstanceLock()) {
     await getBoard();
     currentEndpoints = await settingsStore.read();
     currentProviderDefaults = await settingsStore.readProviderDefaults();
+    currentJudge = await settingsStore.readJudge();
+
+    // Runs cut off by the app closing can never finish; say so on their cards
+    // before anything looks at the board. Self-tests leave the board alone.
+    if (workflowEnabled) {
+      const repaired = repairInterrupted(await getBoard(), new Date());
+      if (repaired.repaired.length > 0) await mutateBoard(() => repaired.board);
+    }
 
     // The dispatch check runs headless: no window is needed, and creating one
     // would only add startup noise to the output being asserted on.
@@ -665,14 +836,29 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
 
+    const flowSeconds = parseFlowTestArg(process.argv);
+    if (flowSeconds) {
+      await runFlowTest(flowSeconds);
+      app.exit(0);
+      return;
+    }
+
     createWindow();
 
     // Discovery probes subprocesses and remote MCP servers, which can take tens
     // of seconds. Running it after the window is up means the board is usable
-    // immediately and the agent pickers fill in when the scan lands.
-    void ensureDiscovery().catch((err: unknown) => {
-      console.error('[discovery] failed:', err);
-    });
+    // immediately and the agent pickers fill in when the scan lands. The
+    // workflow starts once the agents are known — a READY card cannot start
+    // before its agent has been found.
+    void ensureDiscovery()
+      .then(() => {
+        if (!workflowEnabled) return;
+        void orchestrator.tick();
+        workflowTimer = setInterval(() => void orchestrator.tick(), WORKFLOW_TICK_MS);
+      })
+      .catch((err: unknown) => {
+        console.error('[discovery] failed:', err);
+      });
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -685,6 +871,8 @@ if (!app.requestSingleInstanceLock()) {
       // Optional second pass: open Settings and photograph the Accounts and
       // Credentials tabs once the real sign-in status has loaded.
       if (result.ok && process.env.SMOKE_TEST_SETTINGS === '1') {
+        const task = await captureTaskModal(mainWindow, userData);
+        console.log(`SMOKE_TEST_TASK ${JSON.stringify(task)}`);
         const settings = await captureSettingsScreens(mainWindow, userData);
         console.log(`SMOKE_TEST_SETTINGS ${JSON.stringify(settings)}`);
       }
@@ -692,10 +880,16 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
 
-  app.on('window-all-closed', () => {
+  const stopEverything = (): void => {
+    if (workflowTimer) clearInterval(workflowTimer);
+    workflowTimer = null;
     dispatcher.cancelAll();
+  };
+
+  app.on('window-all-closed', () => {
+    stopEverything();
     if (process.platform !== 'darwin') app.quit();
   });
 
-  app.on('before-quit', () => dispatcher.cancelAll());
+  app.on('before-quit', stopEverything);
 }

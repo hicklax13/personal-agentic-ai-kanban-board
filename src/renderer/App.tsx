@@ -6,6 +6,7 @@ import type {
   CardAgentConfig,
   DiscoveryReport,
   EndpointSettings,
+  JudgeSettings,
   RendererApi,
   SecretKey,
 } from '@shared/types';
@@ -13,17 +14,21 @@ import {
   addCard,
   addChatSession,
   addColumn,
+  applyCardPatch,
   deleteCard,
   deleteColumn,
   findCard,
   moveCard,
+  uid,
   updateCard,
   updateCardConfig,
   updateColumn,
   upsertRun,
 } from '@shared/boardOps';
+import { flowColumn, flowKeyOf, placeNewCard } from '@shared/flow';
 import Board from './components/Board.js';
 import CardDetail from './components/CardDetail.js';
+import NewTaskModal, { type TaskDraft } from './components/NewTaskModal.js';
 import SettingsModal from './components/SettingsModal.js';
 
 declare global {
@@ -40,6 +45,7 @@ export default function App(): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [newTaskColumnId, setNewTaskColumnId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(true);
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ kind: 'err' | 'info'; text: string } | null>(null);
@@ -47,18 +53,22 @@ export default function App(): React.JSX.Element {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boardRef = useRef<BoardState | null>(null);
   boardRef.current = board;
+  /**
+   * The highest workflow change from the main process applied to `board`. It is
+   * updated in the same state update that applies the change, so a save always
+   * reports exactly what the board it carries has seen.
+   */
+  const seenSeq = useRef(0);
 
   // --------------------------------------------------------------- startup
   useEffect(() => {
     let cancelled = false;
 
     void (async () => {
-      const [loaded, initialSettings] = await Promise.all([
-        window.api.loadBoard(),
-        window.api.getSettings(),
-      ]);
+      const [loaded, initialSettings] = await Promise.all([window.api.loadBoard(), window.api.getSettings()]);
       if (cancelled) return;
-      setBoard(loaded);
+      seenSeq.current = loaded.patchSeq;
+      setBoard(loaded.board);
       setSettings(initialSettings);
 
       // Discovery is slow (subprocess probes plus MCP health checks), so the
@@ -86,11 +96,12 @@ export default function App(): React.JSX.Element {
             next = moveCard(next, update.cardId, update.moveToColumnId, Number.MAX_SAFE_INTEGER);
           }
         }
+        boardRef.current = next;
         return next;
       });
 
       // The main process already persisted this update, so no save is scheduled
-      // here — doing so would race the writer that owns run history.
+      // here — it owns run history and keeps its own copy on every save.
       setRunning((prev) => {
         const active = ['queued', 'acknowledged', 'running'].includes(update.run.status);
         const next = new Set(prev);
@@ -102,15 +113,45 @@ export default function App(): React.JSX.Element {
     return unsubscribe;
   }, []);
 
+  // ------------------------------------------- workflow changes from main
+  useEffect(
+    () =>
+      window.api.onCardPatch((update) => {
+        setBoard((prev) => {
+          if (!prev) return prev;
+          const next = applyCardPatch(prev, update.cardId, update.patch);
+          seenSeq.current = Math.max(seenSeq.current, update.seq);
+          boardRef.current = next;
+          return next;
+        });
+      }),
+    [],
+  );
+
   // --------------------------------------------------------------- saving
-  const scheduleSave = useCallback((next: BoardState) => {
+  const saveNow = useCallback(async (): Promise<void> => {
+    const current = boardRef.current;
+    if (!current) return;
+    const res = await window.api.saveBoard(current, seenSeq.current);
+    if (!res.ok) setToast({ kind: 'err', text: `Could not save the board: ${res.error}` });
+  }, []);
+
+  /** Save shortly after the last change; the newest board is read when the timer fires. */
+  const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void window.api.saveBoard(next).then((res) => {
-        if (!res.ok) setToast({ kind: 'err', text: `Could not save the board: ${res.error}` });
-      });
+      saveTimer.current = null;
+      void saveNow();
     }, SAVE_DEBOUNCE_MS);
-  }, []);
+  }, [saveNow]);
+
+  /** Save any pending change right away — before asking the main process to act on the board. */
+  const flushSave = useCallback(async (): Promise<void> => {
+    if (!saveTimer.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    await saveNow();
+  }, [saveNow]);
 
   /** Apply a pure board operation and persist the result. */
   const mutate = useCallback(
@@ -118,9 +159,10 @@ export default function App(): React.JSX.Element {
       setBoard((prev) => {
         if (!prev) return prev;
         const next = fn(prev);
-        scheduleSave(next);
+        boardRef.current = next;
         return next;
       });
+      scheduleSave();
     },
     [scheduleSave],
   );
@@ -132,7 +174,7 @@ export default function App(): React.JSX.Element {
       if (saveTimer.current && boardRef.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
-        void window.api.saveBoard(boardRef.current);
+        void window.api.saveBoard(boardRef.current, seenSeq.current);
       }
     };
     window.addEventListener('beforeunload', flush);
@@ -145,58 +187,56 @@ export default function App(): React.JSX.Element {
     [board, selectedCardId],
   );
 
-  const agentsById = useMemo(
-    () => new Map((discovery?.agents ?? []).map((a) => [a.id, a])),
-    [discovery],
-  );
+  const agentsById = useMemo(() => new Map((discovery?.agents ?? []).map((a) => [a.id, a])), [discovery]);
 
-  /**
-   * Apply an operation and hand back the entity it created.
-   *
-   * Reading a new id out of a `setState` updater is unreliable: React may defer
-   * or double-invoke the updater, so the value is either stale or from a run
-   * that got discarded. Computing the next state from the ref first means the
-   * id is real before anything is scheduled.
-   */
-  const mutateAndRead = useCallback(
-    <T,>(fn: (prev: BoardState) => BoardState, read: (next: BoardState) => T): T | null => {
-      const prev = boardRef.current;
-      if (!prev) return null;
-      const next = fn(prev);
-      boardRef.current = next;
-      setBoard(next);
-      scheduleSave(next);
-      return read(next);
-    },
-    [scheduleSave],
-  );
+  const handleCreateTask = (draft: TaskDraft): void => {
+    const current = boardRef.current;
+    if (!current || !newTaskColumnId) return;
+    // A future schedule waits in SCHEDULED and an unfinished parent in TODO,
+    // whichever column "+ New task" was clicked in.
+    const columnId = placeNewCard(current, newTaskColumnId, draft, new Date());
+    const id = uid();
+    mutate((prev) => addCard(prev, columnId, { id, ...draft }));
+    setNewTaskColumnId(null);
+    setSelectedCardId(id);
+  };
 
-  const handleAddCard = (columnId: string): void => {
-    const createdId = mutateAndRead(
-      (prev) => addCard(prev, columnId, { title: 'New task' }),
-      (next) => next.cards[next.cards.length - 1].id,
-    );
-    // Select it straight away: the point of adding a card is to configure it.
-    if (createdId) setSelectedCardId(createdId);
+  const handleSetSchedule = (cardId: string, scheduledAt: string | null): void => {
+    mutate((prev) => {
+      const card = findCard(prev, cardId);
+      if (!card) return prev;
+      let next = updateCard(prev, cardId, { scheduledAt });
+      const scheduled = flowColumn(prev.columns, 'scheduled');
+      const todo = flowColumn(prev.columns, 'todo');
+      const key = flowKeyOf(prev.columns, card.columnId);
+      const future = Boolean(scheduledAt && Date.parse(scheduledAt) > Date.now());
+      // A schedule only means something in SCHEDULED; clearing one there parks
+      // the card in TODO rather than starting it.
+      if (future && scheduled && key !== 'scheduled' && key !== 'running') {
+        next = moveCard(next, cardId, scheduled.id, Number.MAX_SAFE_INTEGER);
+      } else if (!scheduledAt && key === 'scheduled' && todo) {
+        next = moveCard(next, cardId, todo.id, Number.MAX_SAFE_INTEGER);
+      }
+      return next;
+    });
   };
 
   const handleDispatch = async (): Promise<void> => {
     if (!selectedCard || !board) return;
+    const cardId = selectedCard.id;
     setToast(null);
-    setRunning((prev) => new Set(prev).add(selectedCard.id));
+    // The main process runs its own copy of the card, so it must hold the
+    // latest edits (a just-changed model, say) before it starts.
+    await flushSave();
+    setRunning((prev) => new Set(prev).add(cardId));
 
-    const res = await window.api.startDispatch({
-      cardId: selectedCard.id,
-      card: selectedCard,
-      workspaceRoot: board.workspaceRoot,
-    });
+    const res = await window.api.startDispatch({ cardId, card: selectedCard, workspaceRoot: board.workspaceRoot });
 
-    if (!res.ok && res.error) {
-      setToast({ kind: 'err', text: res.error });
-    }
+    if (res.queued && res.info) setToast({ kind: 'info', text: res.info });
+    else if (!res.ok && res.error) setToast({ kind: 'err', text: res.error });
     setRunning((prev) => {
       const next = new Set(prev);
-      next.delete(selectedCard.id);
+      next.delete(cardId);
       return next;
     });
   };
@@ -213,6 +253,7 @@ export default function App(): React.JSX.Element {
   }
 
   const availableAgents = (discovery?.agents ?? []).filter((a) => a.availability === 'available');
+  const goalsRunning = board.cards.filter((c) => c.goal?.status === 'running' && !running.has(c.id)).length;
 
   return (
     <div className="app">
@@ -229,8 +270,8 @@ export default function App(): React.JSX.Element {
             {availableAgents.length} of {discovery?.agents.length ?? 0} agents ready
           </span>
         )}
-        {running.size > 0 ? (
-          <span className="chip st-running pulsing">{running.size} running</span>
+        {running.size + goalsRunning > 0 ? (
+          <span className="chip st-running pulsing">{running.size + goalsRunning} running</span>
         ) : null}
 
         <span className="spacer" />
@@ -246,12 +287,7 @@ export default function App(): React.JSX.Element {
       {toast ? (
         <div className={`banner ${toast.kind}`} style={{ margin: '10px 14px 0' }}>
           {toast.text}
-          <button
-            type="button"
-            className="ghost"
-            style={{ float: 'right' }}
-            onClick={() => setToast(null)}
-          >
+          <button type="button" className="ghost" style={{ float: 'right' }} onClick={() => setToast(null)}>
             ✕
           </button>
         </div>
@@ -263,14 +299,10 @@ export default function App(): React.JSX.Element {
           agentsById={agentsById}
           selectedCardId={selectedCardId}
           onSelectCard={setSelectedCardId}
-          onMoveCard={(cardId, columnId, index) =>
-            mutate((prev) => moveCard(prev, cardId, columnId, index))
-          }
-          onAddCard={handleAddCard}
+          onMoveCard={(cardId, columnId, index) => mutate((prev) => moveCard(prev, cardId, columnId, index))}
+          onAddCard={setNewTaskColumnId}
           onAddColumn={() => mutate((prev) => addColumn(prev, 'New column'))}
-          onRenameColumn={(columnId, title) =>
-            mutate((prev) => updateColumn(prev, columnId, { title }))
-          }
+          onRenameColumn={(columnId, title) => mutate((prev) => updateColumn(prev, columnId, { title }))}
           onDeleteColumn={(columnId) => {
             const count = board.cards.filter((c) => c.columnId === columnId).length;
             const message =
@@ -284,15 +316,17 @@ export default function App(): React.JSX.Element {
         {selectedCard ? (
           <CardDetail
             card={selectedCard}
+            board={board}
             discovery={discovery}
+            settings={settings}
             chatSessions={board.chatSessions}
             workspaceRoot={board.workspaceRoot}
-            providerDefaults={settings.providerDefaults ?? {}}
-            isRunning={running.has(selectedCard.id)}
+            isRunning={running.has(selectedCard.id) || selectedCard.goal?.status === 'running'}
             onPatchCard={(patch) => mutate((prev) => updateCard(prev, selectedCard.id, patch))}
             onPatchConfig={(patch: Partial<CardAgentConfig>) =>
               mutate((prev) => updateCardConfig(prev, selectedCard.id, patch))
             }
+            onSetSchedule={(scheduledAt) => handleSetSchedule(selectedCard.id, scheduledAt)}
             onDelete={() => {
               if (!window.confirm('Delete this card and its run history?')) return;
               mutate((prev) => deleteCard(prev, selectedCard.id));
@@ -300,16 +334,26 @@ export default function App(): React.JSX.Element {
             }}
             onDispatch={() => void handleDispatch()}
             onCancel={() => void window.api.cancelDispatch(selectedCard.id)}
-            onCreateChatSession={(name) =>
-              mutateAndRead(
-                (prev) => addChatSession(prev, name, selectedCard.config.agentId),
-                (next) => next.chatSessions[next.chatSessions.length - 1].id,
-              ) ?? ''
-            }
+            onCreateChatSession={(name) => {
+              const id = uid();
+              mutate((prev) => addChatSession(prev, name, selectedCard.config.agentId, id));
+              return id;
+            }}
             onClose={() => setSelectedCardId(null)}
           />
         ) : null}
       </div>
+
+      {newTaskColumnId ? (
+        <NewTaskModal
+          board={board}
+          columnId={newTaskColumnId}
+          discovery={discovery}
+          settings={settings}
+          onCancel={() => setNewTaskColumnId(null)}
+          onCreate={handleCreateTask}
+        />
+      ) : null}
 
       {showSettings ? (
         <SettingsModal
@@ -332,6 +376,9 @@ export default function App(): React.JSX.Element {
           }}
           onSetProviderDefault={async (providerId, value) => {
             setSettings(await window.api.setProviderDefault(providerId, value));
+          }}
+          onSaveJudge={async (judge: JudgeSettings) => {
+            setSettings(await window.api.setJudge(judge));
           }}
         />
       ) : null}

@@ -1,29 +1,36 @@
 import { useMemo, useState } from 'react';
 import type {
+  AgentRun,
+  AppSettings,
+  BoardState,
   Card,
   CardAgentConfig,
   ChatSession,
   DiscoveryReport,
   Priority,
-  ProviderDefault,
 } from '@shared/types';
 import { PRIORITIES } from '@shared/types';
-import { latestRun } from '@shared/boardOps';
-import { AGENT_DEFAULT_PROVIDER, AGENT_EFFORTS, resolveRunSettings } from '@shared/runSettings';
-import MultiSelect, { type Option } from './MultiSelect.js';
-import { effortsFor } from './ProviderPicker.js';
+import { latestRun, sortedColumns } from '@shared/boardOps';
+import { flowKeyOf, isParentDone, parentCandidates } from '@shared/flow';
+import AssigneeFields from './AssigneeFields.js';
+import ScopeFields from './ScopeFields.js';
+import WorkspaceField from './WorkspaceField.js';
+import Toggle from './Toggle.js';
+import { formatWhen, fromLocalInput, toLocalInput } from './time.js';
 
 interface Props {
   card: Card;
+  board: BoardState;
   discovery: DiscoveryReport | null;
+  settings: AppSettings;
   chatSessions: ChatSession[];
   isRunning: boolean;
   /** Where agents run when this card sets no folder of its own. */
   workspaceRoot: string | null;
-  /** Saved per-provider defaults, shown as what a blank field will use. */
-  providerDefaults: Record<string, ProviderDefault>;
   onPatchCard: (patch: Partial<Omit<Card, 'id' | 'config' | 'runs'>>) => void;
   onPatchConfig: (patch: Partial<CardAgentConfig>) => void;
+  /** Setting or clearing a schedule can also move the card in or out of SCHEDULED. */
+  onSetSchedule: (scheduledAt: string | null) => void;
   onDelete: () => void;
   onDispatch: () => void;
   onCancel: () => void;
@@ -31,24 +38,30 @@ interface Props {
   onClose: () => void;
 }
 
+function runLabel(run: AgentRun): string {
+  const who = run.role === 'judge' ? 'Judge' : 'Worker';
+  return run.round ? `${who}, round ${run.round}` : who;
+}
+
 /**
- * The per-card configuration panel.
+ * The per-card panel: everything the New Task popup sets, editable later, plus
+ * the card's runs.
  *
- * Its guiding rule is that a control never lies about what it does. Each
- * scoping list is checked against the selected agent's real capability flags,
- * and where the agent's CLI has no flag to enforce a choice the control still
- * appears — the spec calls for it — but is labelled "recorded only". Silently
- * accepting a selection that will not be applied is the worst of both worlds.
+ * Its guiding rule is that a control never lies about what it does: scoping
+ * lists say whether the agent's CLI enforces them, and blank model and effort
+ * fields say which default they will use.
  */
 export default function CardDetail({
   card,
+  board,
   discovery,
+  settings,
   chatSessions,
   isRunning,
   workspaceRoot,
-  providerDefaults,
   onPatchCard,
   onPatchConfig,
+  onSetSchedule,
   onDelete,
   onDispatch,
   onCancel,
@@ -56,117 +69,51 @@ export default function CardDetail({
   onClose,
 }: Props): React.JSX.Element {
   const [showTranscript, setShowTranscript] = useState(false);
+  const [newSession, setNewSession] = useState<string | null>(null);
 
-  const agent = discovery?.agents.find((a) => a.id === card.config.agentId) ?? null;
+  const columns = sortedColumns(board);
+  const columnTitle = (id: string): string => board.columns.find((c) => c.id === id)?.title ?? '';
+  const key = flowKeyOf(board.columns, card.columnId);
 
-  const providers = useMemo(() => {
-    if (!discovery) return [];
-    if (!card.config.agentId) return discovery.providers;
-    return discovery.providers.filter((p) => p.agentIds.includes(card.config.agentId as string));
-  }, [discovery, card.config.agentId]);
-
-  const models = useMemo(() => {
-    const provider = providers.find((p) => p.id === card.config.providerId);
-    if (provider) return provider.models;
-    // No provider chosen yet: offer every model this agent could reach, so the
-    // dropdown is useful before the user has narrowed things down.
-    return providers.flatMap((p) => p.models);
-  }, [providers, card.config.providerId]);
-
-  // What blank provider, model and effort fields will turn into at dispatch —
-  // the same rule the main process applies, so the hint is never wrong.
-  const fallback = resolveRunSettings({ ...card.config, model: null, effort: null }, providerDefaults);
-  const agentId = card.config.agentId ?? '';
-  const activeProvider = providers.find(
-    (p) => p.id === (card.config.providerId ?? fallback.providerId ?? AGENT_DEFAULT_PROVIDER[agentId]),
-  );
-  const effortOptions = activeProvider
-    ? effortsFor(activeProvider, card.config.model ?? fallback.model)
-    : (AGENT_EFFORTS[agentId] ?? []);
-
-  const toolOptions: Option[] = useMemo(() => {
-    if (!discovery) return [];
-    const forAgent = card.config.agentId
-      ? discovery.tools.filter((t) => t.agentIds.includes(card.config.agentId as string))
-      : discovery.tools;
-    return forAgent.map((t) => ({ id: t.name, name: t.name, description: t.description }));
-  }, [discovery, card.config.agentId]);
-
-  const mcpOptions: Option[] = useMemo(
+  const candidates = useMemo(
     () =>
-      (discovery?.mcpServers ?? [])
-        // Each agent can only reach the servers in its own configuration.
-        .filter((s) => !card.config.agentId || s.owner === card.config.agentId)
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          description: `${s.ownerName} · ${s.availability} — ${s.statusDetail}`,
-          disabled: s.availability === 'unavailable',
-          disabledReason: s.statusDetail,
-        })),
-    [discovery, card.config.agentId],
+      parentCandidates(board, card.id).sort(
+        (a, b) =>
+          columns.findIndex((c) => c.id === a.columnId) - columns.findIndex((c) => c.id === b.columnId) ||
+          a.position - b.position,
+      ),
+    [board, card.id, columns],
   );
-
-  const pluginOptions: Option[] = useMemo(
-    () =>
-      (discovery?.plugins ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: `${p.marketplace}${p.enabled ? '' : ' — disabled globally'}`,
-        disabled: !p.enabled,
-        disabledReason: 'This plugin is disabled in the global Claude settings.',
-      })),
-    [discovery],
-  );
-
-  const skillOptions: Option[] = useMemo(
-    () =>
-      (discovery?.skills ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description || s.source,
-      })),
-    [discovery],
-  );
+  const parent = board.cards.find((c) => c.id === card.parentId);
+  const waiting = Boolean(parent && !isParentDone(board, card));
 
   const run = latestRun(card);
+  const goalRuns = card.runs.filter((r) => r.role);
   const canDispatch = Boolean(card.config.agentId) && !isRunning;
-
-  /** Explains whether a scoping choice is actually enforced by the chosen agent. */
-  const enforcement = (supported: boolean | undefined, flag: string): React.JSX.Element => {
-    if (!card.config.agentId) {
-      return <div className="hint">Choose an agent to see whether this is enforced.</div>;
-    }
-    return supported ? (
-      <div className="hint">
-        Enforced — passed to the agent as <code className="inline">{flag}</code>.
-      </div>
-    ) : (
-      <div className="hint warn">
-        Recorded on the card only — {agent?.name ?? 'this agent'} has no flag for this, so the
-        selection is saved but not applied at run time.
-      </div>
-    );
-  };
+  const scheduleInPast = Boolean(card.scheduledAt && Date.parse(card.scheduledAt) <= Date.now());
 
   return (
     <div className="panel">
       <div className="panel-head">
         <h2>Card</h2>
+        <span className="chip">{columnTitle(card.columnId)}</span>
+        <span className="spacer" />
         <button type="button" className="ghost" onClick={onClose} title="Close panel">
           ✕
         </button>
       </div>
 
       <div className="panel-body">
+        {key === 'blocked' && card.blockedReason ? (
+          <div className="banner err">
+            <b>Blocked:</b> {card.blockedReason}
+          </div>
+        ) : null}
+
         {/* ------------------------------------------------------- basics */}
         <div className="field">
           <label htmlFor="card-title">Title</label>
-          <input
-            id="card-title"
-            value={card.title}
-            onChange={(e) => onPatchCard({ title: e.target.value })}
-          />
+          <input id="card-title" value={card.title} onChange={(e) => onPatchCard({ title: e.target.value })} />
         </div>
 
         <div className="field">
@@ -176,7 +123,7 @@ export default function CardDetail({
             rows={3}
             value={card.description}
             onChange={(e) => onPatchCard({ description: e.target.value })}
-            placeholder="Background the agent should know. Sent above the prompt."
+            placeholder="Details the agent should know, and how to tell when it is done."
           />
         </div>
 
@@ -197,218 +144,222 @@ export default function CardDetail({
           </div>
           <div>
             <label htmlFor="card-session">Chat session</label>
-            <select
-              id="card-session"
-              value={card.config.chatSessionId ?? ''}
-              onChange={(e) => {
-                if (e.target.value === '__new__') {
-                  const name = window.prompt('Name for the new chat session:');
-                  if (name?.trim()) {
-                    onPatchConfig({ chatSessionId: onCreateChatSession(name.trim()) });
+            {newSession === null ? (
+              <select
+                id="card-session"
+                value={card.config.chatSessionId ?? ''}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') {
+                    setNewSession('');
+                    return;
                   }
-                  return;
-                }
-                onPatchConfig({ chatSessionId: e.target.value || null });
-              }}
-            >
-              <option value="">(one-off — no shared thread)</option>
-              {chatSessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.nativeSessionId ? ' ·  resumable' : ''}
-                </option>
-              ))}
-              <option value="__new__">+ New session…</option>
-            </select>
+                  onPatchConfig({ chatSessionId: e.target.value || null });
+                }}
+              >
+                <option value="">(one-off — no shared thread)</option>
+                {chatSessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                    {s.nativeSessionId ? ' ·  resumable' : ''}
+                  </option>
+                ))}
+                <option value="__new__">+ New session…</option>
+              </select>
+            ) : (
+              <div className="row">
+                <input
+                  id="card-session"
+                  autoFocus
+                  value={newSession}
+                  placeholder="Name the session"
+                  onChange={(e) => setNewSession(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setNewSession(null);
+                    if (e.key === 'Enter' && newSession.trim()) {
+                      onPatchConfig({ chatSessionId: onCreateChatSession(newSession.trim()) });
+                      setNewSession(null);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  style={{ flex: '0 0 auto' }}
+                  disabled={!newSession.trim()}
+                  onClick={() => {
+                    onPatchConfig({ chatSessionId: onCreateChatSession(newSession.trim()) });
+                    setNewSession(null);
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* -------------------------------------------------------- agent */}
+        {/* ------------------------------------------------------- who */}
         <fieldset className="group">
-          <legend>Agent &amp; model</legend>
+          <legend>Who does it</legend>
+          <AssigneeFields
+            idPrefix="card"
+            discovery={discovery}
+            settings={settings}
+            value={card.config}
+            onChange={(next) =>
+              onPatchConfig(
+                next.agentId !== card.config.agentId
+                  ? // Tools and MCP servers belong to one agent; a new agent starts clean.
+                    { ...next, allowedTools: [], allowedMcpServers: [], allowedPlugins: [], allowedSkills: [] }
+                  : next,
+              )
+            }
+          />
+          <div className="field-note">Defaults for each provider are set in Settings.</div>
+        </fieldset>
+
+        {/* -------------------------------------------------- workflow */}
+        <fieldset className="group">
+          <legend>When it runs</legend>
 
           <div className="field">
-            <label htmlFor="card-agent">Assigned agent</label>
+            <label htmlFor="card-parent">Parent (blocks until it&apos;s done)</label>
             <select
-              id="card-agent"
-              value={card.config.agentId ?? ''}
-              onChange={(e) =>
-                // Provider and model belong to the old agent; keeping them would
-                // send a model the new agent has never heard of.
-                onPatchConfig({
-                  agentId: e.target.value || null,
-                  providerId: null,
-                  model: null,
-                  effort: null,
-                  allowedTools: [],
-                })
-              }
+              id="card-parent"
+              value={card.parentId ?? ''}
+              onChange={(e) => onPatchCard({ parentId: e.target.value || null })}
             >
-              <option value="">(none)</option>
-              {(discovery?.agents ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                  {a.availability === 'available'
-                    ? ''
-                    : a.availability === 'degraded'
-                      ? '  · needs attention'
-                      : '  · NOT CONNECTED'}
+              <option value="">— no parent —</option>
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title || 'Untitled'} · {columnTitle(c.columnId)}
                 </option>
               ))}
             </select>
-            {agent ? (
-              <div className={`hint ${agent.availability === 'available' ? '' : 'warn'}`}>
-                <span className={`dot ${agent.availability}`} /> {agent.statusDetail}
-                {agent.remediation ? ` — ${agent.remediation}` : ''}
+            {parent ? (
+              <div className="hint">
+                {waiting
+                  ? `Waits in TODO until "${parent.title}" is in DONE, then moves to READY and starts.`
+                  : `"${parent.title}" is done, so nothing holds this back.`}
               </div>
             ) : null}
           </div>
 
           <div className="field">
-            <label htmlFor="card-provider">Model provider</label>
-            <select
-              id="card-provider"
-              value={card.config.providerId ?? ''}
-              onChange={(e) => onPatchConfig({ providerId: e.target.value || null, model: null })}
-              disabled={!card.config.agentId}
-            >
-              <option value="">(agent default)</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.live ? ' · live' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="card-model">Model</label>
-            <input
-              id="card-model"
-              list="card-model-list"
-              value={card.config.model ?? ''}
-              placeholder={
-                fallback.model
-                  ? `Default: ${fallback.model} — pick from the list or type any id`
-                  : '(agent default) — pick from the list or type any id'
-              }
-              onChange={(e) => onPatchConfig({ model: e.target.value || null })}
-            />
-            <datalist id="card-model-list">
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </datalist>
-            <div className="hint">
-              {models.length} models available. Free text is allowed too, so a model missing from a
-              list can still be used.
+            <label htmlFor="card-schedule">Schedule</label>
+            <div className="row">
+              <input
+                id="card-schedule"
+                type="datetime-local"
+                value={toLocalInput(card.scheduledAt)}
+                onChange={(e) => onSetSchedule(fromLocalInput(e.target.value))}
+              />
+              {card.scheduledAt ? (
+                <button type="button" style={{ flex: '0 0 auto' }} onClick={() => onSetSchedule(null)}>
+                  Clear
+                </button>
+              ) : null}
             </div>
+            {card.scheduledAt ? (
+              <div className="hint">
+                {key === 'scheduled'
+                  ? scheduleInPast
+                    ? 'Due now — it moves to READY within a few seconds.'
+                    : `Starts by itself ${formatWhen(card.scheduledAt)}.`
+                  : `Scheduled for ${formatWhen(card.scheduledAt)}. It only waits while it is in SCHEDULED.`}
+              </div>
+            ) : null}
           </div>
 
           <div className="field">
-            <label htmlFor="card-effort">{activeProvider?.effortLabel ?? 'Effort'}</label>
-            <select
-              id="card-effort"
-              value={card.config.effort ?? ''}
-              disabled={effortOptions.length === 0}
-              onChange={(e) => onPatchConfig({ effort: e.target.value || null })}
-            >
-              <option value="">
-                {effortOptions.length === 0
-                  ? 'Not adjustable for this agent'
-                  : fallback.effort
-                    ? `Default: ${fallback.effort}`
-                    : 'Agent default'}
-              </option>
-              {effortOptions.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
-            <div className="hint">Defaults for each provider are set in Settings.</div>
+            <Toggle id="card-goal" checked={card.goalMode} onChange={(goalMode) => onPatchCard({ goalMode })}>
+              Goal mode (worker loops until a judge agrees it&apos;s done)
+            </Toggle>
+            {card.goalMode && !settings.judge.agentId ? (
+              <div className="hint warn">No judge is chosen yet — pick one in Settings → Judge.</div>
+            ) : null}
+            {card.goal ? (
+              <div className={`goal-status goal-${card.goal.status}`}>
+                <b>
+                  Goal {card.goal.status}
+                  {card.goal.maxRounds ? ` · round ${card.goal.round} of ${card.goal.maxRounds}` : ''}
+                </b>
+                {card.goal.reason ? <div>{card.goal.reason}</div> : null}
+              </div>
+            ) : null}
           </div>
         </fieldset>
 
-        {/* -------------------------------------------------------- scope */}
-        <fieldset className="group">
-          <legend>Tools</legend>
-          <MultiSelect
-            options={toolOptions}
-            selected={card.config.allowedTools}
-            onChange={(allowedTools) => onPatchConfig({ allowedTools })}
-            emptyText="No tools discovered for this agent."
-          />
-          {enforcement(agent?.supportsToolScoping, '--allowedTools / -t')}
-          {card.config.allowedTools.length === 0 ? (
-            <div className="hint">Empty means the agent&apos;s own default tool set.</div>
-          ) : null}
-        </fieldset>
+        {/* ------------------------------------------------------ where */}
+        <WorkspaceField
+          idPrefix="card"
+          mode={card.config.workspaceMode}
+          path={card.config.workingDirectory}
+          boardFolder={workspaceRoot}
+          onChange={({ mode, path }) => onPatchConfig({ workspaceMode: mode, workingDirectory: path })}
+        />
+        {card.worktreePath ? (
+          <div className="field-note" style={{ marginTop: -6, marginBottom: 12 }}>
+            This card&apos;s worktree: <code className="inline">{card.worktreePath}</code>
+          </div>
+        ) : null}
 
-        <fieldset className="group">
-          <legend>MCP servers</legend>
-          <MultiSelect
-            options={mcpOptions}
-            selected={card.config.allowedMcpServers}
-            onChange={(allowedMcpServers) => onPatchConfig({ allowedMcpServers })}
-            emptyText="No MCP servers discovered."
+        {/* ------------------------------------------------------ scope */}
+        <div className="field">
+          <label>Skills, MCP servers, tools and plugins</label>
+          <ScopeFields
+            discovery={discovery}
+            agentId={card.config.agentId}
+            value={card.config}
+            onChange={(patch) => onPatchConfig(patch)}
           />
-          {enforcement(agent?.supportsMcpScoping, 'mcp__<server> in --allowedTools')}
-        </fieldset>
-
-        <fieldset className="group">
-          <legend>Plugins</legend>
-          <MultiSelect
-            options={pluginOptions}
-            selected={card.config.allowedPlugins}
-            onChange={(allowedPlugins) => onPatchConfig({ allowedPlugins })}
-            emptyText="No plugins discovered."
-          />
-          {enforcement(agent?.supportsPluginScoping, '--settings enabledPlugins')}
-        </fieldset>
-
-        <fieldset className="group">
-          <legend>Skills</legend>
-          <MultiSelect
-            options={skillOptions}
-            selected={card.config.allowedSkills}
-            onChange={(allowedSkills) => onPatchConfig({ allowedSkills })}
-            emptyText="No skills discovered."
-          />
-          {enforcement(agent?.supportsSkillScoping, '--skills')}
-        </fieldset>
+        </div>
 
         {/* ------------------------------------------------------- prompt */}
         <div className="field">
           <label htmlFor="card-prompt">Task prompt</label>
           <textarea
             id="card-prompt"
-            rows={6}
+            rows={5}
             value={card.config.taskPrompt}
             onChange={(e) => onPatchConfig({ taskPrompt: e.target.value })}
-            placeholder="The instruction sent to the agent. Falls back to the card title if left empty."
+            placeholder="The instruction sent to the agent. Empty uses the title, with the description as context."
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="card-cwd">Working directory</label>
-          <input
-            id="card-cwd"
-            value={card.config.workingDirectory ?? ''}
-            placeholder={workspaceRoot ? `Default: ${workspaceRoot}` : '(board workspace)'}
-            onChange={(e) => onPatchConfig({ workingDirectory: e.target.value || null })}
-          />
-        </div>
+        {/* ------------------------------------------------------- rounds */}
+        {card.goalMode && goalRuns.length > 0 ? (
+          <fieldset className="group">
+            <legend>Goal rounds</legend>
+            <div className="rounds">
+              {goalRuns.map((r) => (
+                <div key={r.id} className="round-row">
+                  <span className={`chip st-${r.status}`}>{runLabel(r)}</span>
+                  <span className="round-text">
+                    {r.verdict
+                      ? `${r.verdict.verdict}${r.verdict.reason ? ` — ${r.verdict.reason}` : ''}`
+                      : (r.error ?? r.status)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
 
         {/* ------------------------------------------------------- result */}
         {run ? (
           <fieldset className="group">
-            <legend>Last run — {run.status}</legend>
+            <legend>
+              Last run — {run.role ? `${runLabel(run)} · ` : ''}
+              {run.status}
+            </legend>
 
             {run.error ? <div className="banner err">{run.error}</div> : null}
+            {run.verdict ? (
+              <div className={`banner ${run.verdict.verdict === 'done' ? 'info' : 'warn'}`}>
+                Judge: <b>{run.verdict.verdict}</b>
+                {run.verdict.reason ? ` — ${run.verdict.reason}` : ''}
+              </div>
+            ) : null}
 
             {run.command ? (
               <div className="field">
@@ -454,7 +405,7 @@ export default function CardDetail({
       <div className="panel-foot">
         {isRunning ? (
           <button type="button" className="danger" onClick={onCancel}>
-            Cancel run
+            {card.goal?.status === 'running' ? 'Stop goal' : 'Cancel run'}
           </button>
         ) : (
           <button
@@ -462,9 +413,15 @@ export default function CardDetail({
             className="primary"
             onClick={onDispatch}
             disabled={!canDispatch}
-            title={card.config.agentId ? 'Dispatch this card' : 'Assign an agent first'}
+            title={
+              !card.config.agentId
+                ? 'Choose who does this task first'
+                : waiting
+                  ? 'Waits for its parent, then starts by itself'
+                  : 'Run this card now'
+            }
           >
-            Send to Agent
+            {waiting ? 'Send when parent is done' : 'Send to Agent'}
           </button>
         )}
         <span style={{ flex: 1 }} />

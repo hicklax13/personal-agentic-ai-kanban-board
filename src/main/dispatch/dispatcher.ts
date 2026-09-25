@@ -4,51 +4,18 @@ import type {
   AgentRun,
   BoardState,
   Card,
+  CardAgentConfig,
   ChatSession,
-  Column,
   DiscoveredAgent,
   EndpointSettings,
   ProviderDefault,
   RunEvent,
+  RunRole,
   RunUpdate,
 } from '@shared/types';
 import { resolveRunSettings } from '@shared/runSettings';
 import type { AdapterEvent, SecretReader } from '../agents/types.js';
 import { getAdapter } from '../agents/registry.js';
-
-/**
- * Where a card should land as its run moves through phases.
- *
- * Matching on the column title first means a board the user renamed still
- * behaves sensibly, and falling back to position keeps it working on a board
- * with entirely custom column names. Returning null means "leave it alone",
- * which is the right answer rather than guessing on a two-column board.
- */
-export function resolveAutoMove(
-  columns: Column[],
-  phase: 'start' | 'success',
-  currentColumnId: string,
-): string | null {
-  const ordered = [...columns].sort((a, b) => a.position - b.position);
-  const byTitle = (needle: string): Column | undefined =>
-    ordered.find((c) => c.title.trim().toLowerCase() === needle);
-
-  if (phase === 'start') {
-    const target = byTitle('in progress') ?? ordered[1];
-    if (!target || target.id === currentColumnId) return null;
-    // Never drag a card backwards: a card already in Review should not jump
-    // back to In Progress just because it was re-run.
-    const from = ordered.findIndex((c) => c.id === currentColumnId);
-    const to = ordered.findIndex((c) => c.id === target.id);
-    return to > from ? target.id : null;
-  }
-
-  const target = byTitle('in review') ?? byTitle('done') ?? ordered[ordered.length - 1];
-  if (!target || target.id === currentColumnId) return null;
-  const from = ordered.findIndex((c) => c.id === currentColumnId);
-  const to = ordered.findIndex((c) => c.id === target.id);
-  return to > from ? target.id : null;
-}
 
 export interface DispatcherDeps {
   getBoard(): BoardState;
@@ -59,8 +26,30 @@ export interface DispatcherDeps {
   secrets: SecretReader;
   /** Push an update to the renderer. */
   publish(update: RunUpdate): void;
-  /** Persist a run (and any column move) into the board file. */
+  /** Persist a run into the board file. */
   persist(update: RunUpdate): Promise<void>;
+}
+
+/** How one run differs from a plain "send this card to its agent". */
+export interface StartOptions {
+  role?: RunRole;
+  round?: number;
+  /** Replaces the card's own prompt — a Goal-mode continuation, or the judge's question. */
+  prompt?: string;
+  /** The agent session to continue, instead of the card's chat session. */
+  resumeSessionId?: string | null;
+  /** The folder to run in, already prepared (a worktree, say). Undefined = work it out here. */
+  cwd?: string | null;
+  /** Another agent's settings used on this card's behalf — how the judge runs. */
+  configOverride?: Partial<CardAgentConfig>;
+}
+
+export interface StartResult {
+  ok: boolean;
+  runId?: string;
+  error?: string;
+  /** The finished run, when one was started. */
+  run?: AgentRun;
 }
 
 interface ActiveRun {
@@ -70,6 +59,9 @@ interface ActiveRun {
 
 /**
  * Owns the lifecycle of every in-flight agent run.
+ *
+ * It runs a card and records the result; deciding where the card goes next is
+ * the workflow's job (see the Orchestrator), so this class never moves cards.
  *
  * Updates to the renderer are throttled rather than sent per token: a fast
  * model can emit hundreds of deltas a second, and forwarding each one as its
@@ -86,6 +78,10 @@ export class Dispatcher {
     return this.active.has(cardId);
   }
 
+  runningCount(): number {
+    return this.active.size;
+  }
+
   cancel(cardId: string): boolean {
     const running = this.active.get(cardId);
     if (!running) return false;
@@ -98,14 +94,25 @@ export class Dispatcher {
     this.active.clear();
   }
 
-  async start(card: Card, workspaceRoot: string | null): Promise<{ ok: boolean; runId?: string; error?: string }> {
+  async start(card: Card, workspaceRoot: string | null, opts: StartOptions = {}): Promise<StartResult> {
     if (this.active.has(card.id)) {
       return { ok: false, error: 'This card already has a run in progress.' };
     }
 
-    const agentId = card.config.agentId;
+    let runCard: Card = opts.configOverride
+      ? { ...card, config: { ...card.config, ...opts.configOverride } }
+      : card;
+    if (opts.prompt !== undefined) {
+      // The prompt is complete on its own; the description would repeat it.
+      runCard = { ...runCard, description: '', config: { ...runCard.config, taskPrompt: opts.prompt } };
+    }
+
+    const agentId = runCard.config.agentId;
     if (!agentId) {
-      return { ok: false, error: 'No agent is assigned to this card.' };
+      return {
+        ok: false,
+        error: opts.role === 'judge' ? 'No judge is set. Choose one in Settings → Judge.' : 'No agent is assigned to this card.',
+      };
     }
 
     const agent = this.deps.getAgent(agentId);
@@ -121,13 +128,23 @@ export class Dispatcher {
     // Fill any blank provider, model or effort from the saved defaults. The card
     // handed to the adapter carries the resolved values, so the run record shows
     // exactly what was used rather than "default".
-    card = { ...card, config: { ...card.config, ...resolveRunSettings(card.config, this.deps.providerDefaults()) } };
+    runCard = {
+      ...runCard,
+      config: { ...runCard.config, ...resolveRunSettings(runCard.config, this.deps.providerDefaults()) },
+    };
+
+    // Adapters run in `config.workingDirectory`, falling back to the board's
+    // folder, so the resolved folder is written there for this run only.
+    const cwd =
+      opts.cwd !== undefined
+        ? opts.cwd
+        : (runCard.config.workspaceMode === 'board' ? null : runCard.config.workingDirectory) || workspaceRoot;
+    runCard = { ...runCard, config: { ...runCard.config, workingDirectory: cwd } };
 
     // Windows refuses to start a program in a folder that does not exist, and
     // reports it as the *program* not being found — a baffling message. Check
     // the folder first so the card says what is actually wrong. HTTP agents
     // never use a folder, so they are exempt.
-    const cwd = card.config.workingDirectory || workspaceRoot;
     if (agent.transport === 'cli-subprocess' && cwd && !existsSync(cwd)) {
       return {
         ok: false,
@@ -136,8 +153,22 @@ export class Dispatcher {
     }
 
     const board = this.deps.getBoard();
+    const chat = board.chatSessions.find((s) => s.id === runCard.config.chatSessionId) ?? null;
+    // A Goal-mode round continues the worker's own session; otherwise the
+    // card's chat session (if any) decides what is resumed.
     const session: ChatSession | null =
-      board.chatSessions.find((s) => s.id === card.config.chatSessionId) ?? null;
+      opts.resumeSessionId !== undefined
+        ? opts.resumeSessionId
+          ? {
+              id: `resume:${opts.resumeSessionId}`,
+              name: 'Goal loop',
+              agentId,
+              nativeSessionId: opts.resumeSessionId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }
+          : null
+        : chat;
 
     const controller = new AbortController();
     const runId = randomUUID();
@@ -147,11 +178,11 @@ export class Dispatcher {
       id: runId,
       cardId: card.id,
       agentId,
-      providerId: card.config.providerId,
-      model: card.config.model,
-      effort: card.config.effort,
+      providerId: runCard.config.providerId,
+      model: runCard.config.model,
+      effort: runCard.config.effort,
       status: 'queued',
-      prompt: card.config.taskPrompt || card.title,
+      prompt: runCard.config.taskPrompt || runCard.title,
       output: '',
       events: [],
       error: null,
@@ -160,13 +191,15 @@ export class Dispatcher {
       startedAt: new Date().toISOString(),
       endedAt: null,
       command: null,
+      ...(opts.role ? { role: opts.role } : {}),
+      ...(opts.round ? { round: opts.round } : {}),
     };
 
     // Announce immediately so the tile shows "queued" before any process spawns.
     this.deps.publish({ cardId: card.id, run: { ...run } });
 
     let lastPublish = 0;
-    let movedOnStart = false;
+    let announcedStart = false;
 
     const pushEvent = (kind: RunEvent['kind'], text: string): void => {
       run.events.push({ at: new Date().toISOString(), kind, text });
@@ -187,15 +220,9 @@ export class Dispatcher {
         case 'status': {
           run.status = event.status;
           if (event.text) pushEvent('status', event.text);
-
-          if (!movedOnStart && (event.status === 'running' || event.status === 'acknowledged')) {
-            movedOnStart = true;
-            const moveTo = resolveAutoMove(this.deps.getBoard().columns, 'start', card.columnId);
-            const update: RunUpdate = {
-              cardId: card.id,
-              run: { ...run, events: [...run.events] },
-              ...(moveTo ? { moveToColumnId: moveTo } : {}),
-            };
+          if (!announcedStart && (event.status === 'running' || event.status === 'acknowledged')) {
+            announcedStart = true;
+            const update: RunUpdate = { cardId: card.id, run: { ...run, events: [...run.events] } };
             this.deps.publish(update);
             void this.deps.persist(update);
             return;
@@ -228,7 +255,7 @@ export class Dispatcher {
 
     try {
       const result = await adapter.run({
-        card,
+        card: runCard,
         agent,
         workspaceRoot,
         session,
@@ -252,29 +279,27 @@ export class Dispatcher {
         pushEvent('error', run.error);
       }
     } catch (err) {
-      run.status = 'failed';
-      run.error = err instanceof Error ? err.message : String(err);
+      run.status = controller.signal.aborted ? 'cancelled' : 'failed';
+      run.error = controller.signal.aborted ? 'Cancelled by the user.' : err instanceof Error ? err.message : String(err);
       run.endedAt = new Date().toISOString();
       pushEvent('error', run.error);
     } finally {
       this.active.delete(card.id);
     }
 
-    const moveTo =
-      run.status === 'succeeded'
-        ? resolveAutoMove(this.deps.getBoard().columns, 'success', card.columnId)
-        : null;
-
-    const finalUpdate: RunUpdate = {
-      cardId: card.id,
-      run: { ...run, events: [...run.events] },
-      ...(moveTo ? { moveToColumnId: moveTo } : {}),
-    };
+    const finalUpdate: RunUpdate = { cardId: card.id, run: { ...run, events: [...run.events] } };
     this.deps.publish(finalUpdate);
     await this.deps.persist(finalUpdate);
 
+    const finished = { ...run, events: [...run.events] };
     return run.status === 'succeeded'
-      ? { ok: true, runId }
-      : { ok: false, runId, error: run.error ?? 'Run did not succeed.' };
+      ? { ok: true, runId, run: finished }
+      : { ok: false, runId, run: finished, error: run.error ?? 'Run did not succeed.' };
+  }
+
+  /** Record something on a run after it finished — the judge's verdict. */
+  async annotate(update: RunUpdate): Promise<void> {
+    this.deps.publish(update);
+    await this.deps.persist(update);
   }
 }

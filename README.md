@@ -36,34 +36,55 @@ npm run dev
 
 ## What it does
 
-**Board.** Four columns by default (Backlog, In Progress, In Review, Done). Add, rename and
-delete columns. Add, edit, move and delete cards. Drag a card anywhere, including between
-columns. Everything saves automatically and survives a restart.
+**Board.** Eight workflow columns, modelled on Hermes Agent's own Kanban:
 
-**Per-card agent config.** Select a card and the right-hand panel lets you set, for that card
-alone:
-
-| Setting | What it does |
+| Column | Meaning |
 | --- | --- |
-| Assigned agent | Which discovered agent runs this card |
-| Model provider | Narrows the model list |
-| Model | Pick from the discovered list, or type any id |
-| Effort | Reasoning effort, limited to the levels the agent (and model) accept |
-| Tools | Which tools the agent may use |
-| MCP servers | Which MCP servers the agent may reach |
-| Plugins | Which plugins are active |
-| Skills | Which skills are preloaded |
-| Chat session | Share a conversation thread across several cards |
-| Task prompt | The instruction sent when you dispatch |
-| Working directory | Where the agent runs |
+| TRIAGE | Rough ideas |
+| TODO | Parked work — and tasks waiting for an unfinished parent |
+| SCHEDULED | Tasks waiting for their start time |
+| READY | **Runs by itself**, highest priority first (up to three at once) |
+| RUNNING | An agent is working on it |
+| BLOCKED | Needs you: a failed run, or a Goal the judge could not sign off (the card says why) |
+| REVIEW | Finished — check the result |
+| DONE | Accepted. Cards waiting on this one move to READY |
+
+Add, rename and delete columns; add, edit, move and delete cards; drag a card anywhere.
+Everything saves automatically and survives a restart. A board from an older version is
+upgraded in place (Backlog → TODO, In Progress → RUNNING, In Review → REVIEW, Done → DONE, no
+card moves) and the original file is kept as `board.v1-backup.json`.
+
+**New task popup.** **+ New task** on any column opens it. Only the title is required:
+
+| Field | What it does |
+| --- | --- |
+| Title, Description | The task. In Goal mode these are what the judge checks, so say what "done" means |
+| Priority | Low to Urgent; higher starts first when several tasks are READY |
+| Workspace | The board folder, a folder of its own, or a new **git worktree** (own branch, under `<repo>/.worktrees/<id>`, kept afterwards) |
+| Assignee | An account (ChatGPT via Codex, Claude via Claude Code), a connection (Hermes, Ollama, LM Studio) or an API key (via Hermes) |
+| Model, Effort | Every model and effort level that assignee offers; blank uses the default from Settings |
+| Skills, MCP servers, tools, plugins | Optional; each list only offers what that agent can use |
+| Parent | The task waits in TODO until the parent is DONE, then starts by itself |
+| Schedule | The task waits in SCHEDULED and starts by itself at that time (the app must be open; if it is not, it starts when you next open it) |
+| Goal mode | The worker loops until the judge agrees it is done |
+
+The popup's footer says where the task will go and when it will start. Everything can be
+changed later in the card panel, which also has the task prompt and a chat session.
 
 Each scoping list says whether the chosen agent can actually enforce it. Where an agent's CLI
 has no flag for something, the control still works but is labelled **recorded only** — the app
 never pretends a restriction is being applied when it is not.
 
-**Dispatch.** Press **Send to Agent**. The card moves to In Progress, output appears on the
-card as it arrives, and the card moves to In Review when the run succeeds. You can cancel a
-run at any time.
+**Dispatch.** Press **Send to Agent**, or move the card to READY. The card moves to RUNNING,
+output appears on it as it arrives, and it moves to REVIEW when the run succeeds (BLOCKED if it
+fails). You can cancel a run at any time.
+
+**Goal mode.** After each round the judge (Settings → Judge) runs in the same folder, checks the
+work against the title and description, and answers `done` (card → DONE), `continue` (its
+feedback goes back to the worker, which resumes its own session) or `blocked` (the task cannot
+be done as written; card → BLOCKED). If the judge is still not satisfied after the round limit,
+the card goes to BLOCKED with its last feedback. A judge that gives no clear answer counts as
+`continue`, so unfinished work is never marked done.
 
 ---
 
@@ -126,6 +147,9 @@ Effort levels come from each agent's own CLI help: Claude Code `--effort`, Codex
   Each name is the environment variable the receiving agent reads; the Hermes names come from
   Hermes's own provider table. Hermes loads its own `.env` over anything passed in, so if
   Hermes already holds a key for a provider, Hermes uses its own.
+- **Judge** — who checks Goal-mode tasks: any account, connection or API key, its model and
+  effort, what it may use (skills, MCP servers, tools, plugins), and how many rounds to allow
+  before a person takes over (default 5).
 - **Environment** — what the last scan found. Click any count (agents, providers, models, MCP
   servers, plugins, skills, tools) to open the full list, with a filter for long ones. MCP
   servers are grouped by the agent that owns them — Claude Code, Codex and Hermes each keep
@@ -142,8 +166,9 @@ Running unpackaged (`npx electron .`), everything stays inside the project folde
 | File | Contents |
 | --- | --- |
 | `data/board.json` | The whole board, in readable JSON |
-| `data/settings.json` | Endpoint URLs |
+| `data/settings.json` | Endpoint URLs, each provider's default model and effort, and the judge |
 | `data/secrets.enc.json` | API keys, encrypted |
+| `data/board.v1-backup.json` | Only after an upgrade: the board as it was before |
 
 A packaged build uses the platform's standard application-data directory instead. Set
 `AGENT_KANBAN_DATA_DIR` to override either. Electron writes its own Chromium caches under the
@@ -165,14 +190,17 @@ npm test            # run the test suite
 npm run typecheck   # typecheck both processes
 ```
 
-Two verification modes are built into the app itself:
+Three verification modes are built into the app itself. Point `AGENT_KANBAN_DATA_DIR` at a
+scratch folder for all of them; the self-test never starts agents or moves cards, the other two do.
 
 ```bash
 npx electron . --smoke-test
 ```
 
-Boots the app, waits for the renderer, captures a screenshot, and exits non-zero if the board
-failed to render. Prints `SMOKE_TEST_RESULT {...}`.
+Boots the app, waits for the board, captures a screenshot, and exits non-zero if the board
+failed to render. Prints `SMOKE_TEST_RESULT {...}`. With `SMOKE_TEST_SETTINGS=1` it also opens
+the New Task popup (filled in, then cancelled), a card, and every Settings tab, photographs
+each and prints what it found (`SMOKE_TEST_TASK`, `SMOKE_TEST_SETTINGS`).
 
 ```bash
 npx electron . --dispatch-test=hermes,ollama
@@ -180,6 +208,14 @@ npx electron . --dispatch-test=hermes,ollama
 
 Runs a real card through the real dispatcher for each named agent and prints
 `DISPATCH_TEST {...}` per agent, including whether the run persisted to disk.
+
+```bash
+npx electron . --flow-test=600
+```
+
+Lets the real workflow run the board — READY starts, schedules, parents, Goal mode with the
+judge — until nothing is left to do (or the given number of seconds pass), then prints
+`FLOW_TEST {...}` with every card's column, goal and runs.
 
 ---
 
@@ -195,9 +231,14 @@ runs unattended, so any prompt would stall it, and the aim is maximum autonomy.
 | Hermes | `--yolo --accept-hooks` | Dangerous commands and config hooks auto-approved |
 
 An agent can therefore read, change or delete anything your user account can, and run any
-command. Give each card a **Working directory** for the folder it should work in; a card
-without one runs in your home folder. Only send prompts you trust — text pasted from a web
-page or a document can carry instructions aimed at the agent.
+command. Give each card a **Workspace** — its own folder, or a git worktree so its changes stay
+on their own branch; a card on the board folder runs in your home folder by default. Only send
+prompts you trust — text pasted from a web page or a document can carry instructions aimed at
+the agent.
+
+Cards also start **without a click**: anything moved to READY, a scheduled task when its time
+comes, and a task whose parent reaches DONE all run with these same permissions. The Goal-mode
+judge is told not to change files, but it runs with its agent's full permissions too.
 
 The flags live in one place per agent (`src/main/agents/*.ts`) if you want to dial them back.
 

@@ -7,6 +7,7 @@ import type {
   DiscoveredProvider,
   DiscoveryReport,
   EndpointSettings,
+  JudgeSettings,
   ProviderDefault,
   SecretKey,
 } from '@shared/types';
@@ -14,6 +15,7 @@ import { CREDENTIALS } from '@shared/types';
 import { AGENT_DEFAULT_PROVIDER } from '@shared/runSettings';
 import ProviderPicker, { HermesDefaultPicker } from './ProviderPicker.js';
 import EnvironmentPanel from './EnvironmentPanel.js';
+import JudgePanel from './JudgePanel.js';
 
 interface Props {
   settings: AppSettings;
@@ -26,6 +28,7 @@ interface Props {
   onRefreshDiscovery: () => Promise<void>;
   onRefreshCatalog: () => Promise<void>;
   onSetProviderDefault: (providerId: string, value: ProviderDefault) => Promise<void>;
+  onSaveJudge: (judge: JudgeSettings) => Promise<void>;
 }
 
 /** The catalogue provider each account's sign-in runs. */
@@ -65,7 +68,7 @@ function ModelsBar({
   );
 }
 
-type Tab = 'accounts' | 'connections' | 'credentials' | 'environment';
+type Tab = 'accounts' | 'connections' | 'credentials' | 'judge' | 'environment';
 
 export default function SettingsModal({
   settings,
@@ -78,6 +81,7 @@ export default function SettingsModal({
   onRefreshDiscovery,
   onRefreshCatalog,
   onSetProviderDefault,
+  onSaveJudge,
 }: Props): React.JSX.Element {
   const [tab, setTab] = useState<Tab>('accounts');
   const [endpoints, setEndpoints] = useState<EndpointSettings>(settings.endpoints);
@@ -121,6 +125,13 @@ export default function SettingsModal({
             onClick={() => setTab('credentials')}
           >
             Credentials
+          </button>
+          <button
+            type="button"
+            className={tab === 'judge' ? 'primary' : 'ghost'}
+            onClick={() => setTab('judge')}
+          >
+            Judge
           </button>
           <button
             type="button"
@@ -309,6 +320,11 @@ export default function SettingsModal({
                 IPC bridge, only write and clear.
               </div>
             </>
+          ) : null}
+
+          {/* ------------------------------------------------------ judge */}
+          {tab === 'judge' ? (
+            <JudgePanel settings={settings} discovery={discovery} onSave={onSaveJudge} />
           ) : null}
 
           {/* ------------------------------------------------ environment */}

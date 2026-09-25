@@ -5,7 +5,7 @@ import { buildHermesCommand } from '../src/main/agents/hermes.js';
 import { parseSseData } from '../src/main/agents/lmstudio.js';
 import { LineBuffer, pickErrorLine } from '../src/main/agents/streaming.js';
 import { buildPrompt, renderCommand } from '../src/main/agents/types.js';
-import { resolveAutoMove } from '../src/main/dispatch/dispatcher.js';
+import { outcomeColumn } from '../shared/flow.js';
 import { makeCard, makeColumn, defaultAgentConfig } from '../src/main/store/schema.js';
 import type { Card, CardAgentConfig } from '../shared/types.js';
 
@@ -317,7 +317,9 @@ describe('parseSseData', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('resolveAutoMove', () => {
+describe('outcomeColumn on an older four-column board', () => {
+  // Boards made before the workflow columns still move sensibly: their titles
+  // are recognised as the same roles.
   const columns = [
     makeColumn('Backlog', 0, '#000'),
     makeColumn('In Progress', 1, '#000'),
@@ -326,29 +328,30 @@ describe('resolveAutoMove', () => {
   ];
 
   it('moves a starting card to In Progress by name', () => {
-    expect(resolveAutoMove(columns, 'start', columns[0].id)).toBe(columns[1].id);
+    expect(outcomeColumn(columns, 'start', columns[0].id)).toBe(columns[1].id);
   });
 
   it('moves a finished card to In Review', () => {
-    expect(resolveAutoMove(columns, 'success', columns[1].id)).toBe(columns[2].id);
-  });
-
-  it('never drags a card backwards when it is re-run from a later column', () => {
-    expect(resolveAutoMove(columns, 'start', columns[2].id)).toBeNull();
+    expect(outcomeColumn(columns, 'succeeded', columns[1].id)).toBe(columns[2].id);
   });
 
   it('stays put when the card is already in the target column', () => {
-    expect(resolveAutoMove(columns, 'start', columns[1].id)).toBeNull();
+    expect(outcomeColumn(columns, 'start', columns[1].id)).toBeNull();
   });
 
-  it('falls back to position on a board with entirely custom column names', () => {
-    const custom = [makeColumn('Ideas', 0, '#000'), makeColumn('Doing', 1, '#000')];
-    expect(resolveAutoMove(custom, 'start', custom[0].id)).toBe(custom[1].id);
+  it('leaves a failed card where it is when the board has no BLOCKED column', () => {
+    expect(outcomeColumn(columns, 'failed', columns[1].id)).toBeNull();
+  });
+
+  it('falls back to position, forward only, on a board with entirely custom names', () => {
+    const custom = [makeColumn('Ideas', 0, '#000'), makeColumn('Later', 1, '#000')];
+    expect(outcomeColumn(custom, 'start', custom[0].id)).toBe(custom[1].id);
+    expect(outcomeColumn(custom, 'start', custom[1].id)).toBeNull();
   });
 
   it('does nothing on a single-column board', () => {
     const one = [makeColumn('Only', 0, '#000')];
-    expect(resolveAutoMove(one, 'start', one[0].id)).toBeNull();
-    expect(resolveAutoMove(one, 'success', one[0].id)).toBeNull();
+    expect(outcomeColumn(one, 'start', one[0].id)).toBeNull();
+    expect(outcomeColumn(one, 'succeeded', one[0].id)).toBeNull();
   });
 });

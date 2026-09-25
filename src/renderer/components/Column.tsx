@@ -1,8 +1,10 @@
 import { useDroppable } from '@dnd-kit/core';
-import type { Card, Column as ColumnModel, DiscoveredAgent } from '@shared/types';
+import type { BoardState, Card, Column as ColumnModel, DiscoveredAgent } from '@shared/types';
+import { flowKeyOf, isParentDone, parentOf } from '@shared/flow';
 import CardTile from './CardTile.js';
 
 interface Props {
+  board: BoardState;
   column: ColumnModel;
   cards: Card[];
   agentsById: Map<string, DiscoveredAgent>;
@@ -15,6 +17,7 @@ interface Props {
 }
 
 export default function Column({
+  board,
   column,
   cards,
   agentsById,
@@ -31,6 +34,7 @@ export default function Column({
   });
 
   const overWip = column.wipLimit !== null && cards.length > column.wipLimit;
+  const columnKey = flowKeyOf(board.columns, column.id);
 
   return (
     <div className={`column ${isOver ? 'drop-target' : ''}`}>
@@ -69,6 +73,8 @@ export default function Column({
             agent={card.config.agentId ? (agentsById.get(card.config.agentId) ?? null) : null}
             selected={card.id === selectedCardId}
             onSelect={() => onSelectCard(card.id)}
+            columnKey={columnKey}
+            waitingFor={isParentDone(board, card) ? null : (parentOf(board, card)?.title ?? null)}
           />
         ))}
         {cards.length === 0 ? (
@@ -80,7 +86,7 @@ export default function Column({
 
       <div className="column-foot">
         <button type="button" className="ghost" onClick={() => onAddCard(column.id)}>
-          + Add card
+          + New task
         </button>
       </div>
     </div>

@@ -7,9 +7,14 @@ import type {
   AgentTestResult,
   AppSettings,
   BoardState,
+  CardPatchUpdate,
   DiscoveryReport,
   DispatchRequest,
+  DispatchResult,
   EndpointSettings,
+  GitRepoInfo,
+  JudgeSettings,
+  LoadedBoard,
   McpSignInProgress,
   ProviderDefault,
   RendererApi,
@@ -28,9 +33,9 @@ import { IPC } from '@shared/types';
  * credential values only ever travel from the renderer inward.
  */
 const api: RendererApi = {
-  loadBoard: () => ipcRenderer.invoke(IPC.boardLoad) as Promise<BoardState>,
-  saveBoard: (state) =>
-    ipcRenderer.invoke(IPC.boardSave, state) as Promise<{ ok: boolean; error?: string }>,
+  loadBoard: () => ipcRenderer.invoke(IPC.boardLoad) as Promise<LoadedBoard>,
+  saveBoard: (state: BoardState, seenPatchSeq: number) =>
+    ipcRenderer.invoke(IPC.boardSave, state, seenPatchSeq) as Promise<{ ok: boolean; error?: string }>,
   revealBoardFile: () => ipcRenderer.invoke(IPC.boardReveal) as Promise<void>,
 
   getDiscovery: () => ipcRenderer.invoke(IPC.discoveryGet) as Promise<DiscoveryReport>,
@@ -74,13 +79,15 @@ const api: RendererApi = {
   },
 
   startDispatch: (req: DispatchRequest) =>
-    ipcRenderer.invoke(IPC.dispatchStart, req) as Promise<{
-      ok: boolean;
-      runId?: string;
-      error?: string;
-    }>,
+    ipcRenderer.invoke(IPC.dispatchStart, req) as Promise<DispatchResult>,
   cancelDispatch: (cardId: string) =>
     ipcRenderer.invoke(IPC.dispatchCancel, cardId) as Promise<{ ok: boolean }>,
+
+  setJudge: (judge: JudgeSettings) =>
+    ipcRenderer.invoke(IPC.settingsSetJudge, judge) as Promise<AppSettings>,
+  pickFolder: (defaultPath?: string | null) =>
+    ipcRenderer.invoke(IPC.pickFolder, defaultPath ?? null) as Promise<string | null>,
+  gitRepoInfo: (path: string) => ipcRenderer.invoke(IPC.gitRepoInfo, path) as Promise<GitRepoInfo>,
 
   onRunUpdate: (cb) => {
     const listener = (_e: unknown, update: RunUpdate): void => cb(update);
@@ -89,6 +96,13 @@ const api: RendererApi = {
     // it a hot reload would stack duplicate listeners and double-apply updates.
     return () => {
       ipcRenderer.removeListener(IPC.runUpdate, listener);
+    };
+  },
+  onCardPatch: (cb) => {
+    const listener = (_e: unknown, update: CardPatchUpdate): void => cb(update);
+    ipcRenderer.on(IPC.cardPatch, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.cardPatch, listener);
     };
   },
 };

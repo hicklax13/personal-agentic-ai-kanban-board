@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
-import type { EndpointSettings, ProviderDefault } from '@shared/types';
+import type { EndpointSettings, JudgeSettings, ProviderDefault } from '@shared/types';
 
 /**
  * Non-secret settings: endpoints and each provider's default model and effort.
@@ -55,9 +55,49 @@ export function normaliseProviderDefaults(input: unknown): Record<string, Provid
   return out;
 }
 
+/** Hermes's goal loop allows 20 turns; each round here is a whole agent run, so fewer. */
+export const DEFAULT_JUDGE_ROUNDS = 5;
+export const MAX_JUDGE_ROUNDS = 50;
+
+export const DEFAULT_JUDGE: JudgeSettings = {
+  agentId: null,
+  providerId: null,
+  model: null,
+  effort: null,
+  allowedTools: [],
+  allowedMcpServers: [],
+  allowedPlugins: [],
+  allowedSkills: [],
+  maxRounds: DEFAULT_JUDGE_ROUNDS,
+};
+
+function cleanList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? [...new Set(value.filter((v): v is string => typeof v === 'string' && v.trim() !== ''))]
+    : [];
+}
+
+export function normaliseJudge(input: unknown): JudgeSettings {
+  if (!input || typeof input !== 'object') return { ...DEFAULT_JUDGE };
+  const r = input as Record<string, unknown>;
+  const rounds = typeof r.maxRounds === 'number' && Number.isFinite(r.maxRounds) ? Math.round(r.maxRounds) : DEFAULT_JUDGE_ROUNDS;
+  return {
+    agentId: cleanText(r.agentId),
+    providerId: cleanText(r.providerId),
+    model: cleanText(r.model),
+    effort: cleanText(r.effort),
+    allowedTools: cleanList(r.allowedTools),
+    allowedMcpServers: cleanList(r.allowedMcpServers),
+    allowedPlugins: cleanList(r.allowedPlugins),
+    allowedSkills: cleanList(r.allowedSkills),
+    maxRounds: Math.min(MAX_JUDGE_ROUNDS, Math.max(1, rounds)),
+  };
+}
+
 interface SettingsFile {
   endpoints: EndpointSettings;
   providerDefaults: Record<string, ProviderDefault>;
+  judge: JudgeSettings;
 }
 
 export class SettingsStore {
@@ -69,13 +109,18 @@ export class SettingsStore {
     if (this.cache) return this.cache;
     try {
       const text = await fs.readFile(this.filePath, 'utf8');
-      const parsed = JSON.parse(text) as Partial<{ endpoints: unknown; providerDefaults: unknown }>;
+      const parsed = JSON.parse(text) as Partial<{
+        endpoints: unknown;
+        providerDefaults: unknown;
+        judge: unknown;
+      }>;
       this.cache = {
         endpoints: normaliseEndpoints(parsed.endpoints as Partial<EndpointSettings> | undefined),
         providerDefaults: normaliseProviderDefaults(parsed.providerDefaults),
+        judge: normaliseJudge(parsed.judge),
       };
     } catch {
-      this.cache = { endpoints: { ...DEFAULT_ENDPOINTS }, providerDefaults: {} };
+      this.cache = { endpoints: { ...DEFAULT_ENDPOINTS }, providerDefaults: {}, judge: { ...DEFAULT_JUDGE } };
     }
     return this.cache;
   }
@@ -112,5 +157,16 @@ export class SettingsStore {
     const merged = normaliseProviderDefaults({ ...file.providerDefaults, [providerId]: value });
     await this.persist({ ...file, providerDefaults: merged });
     return merged;
+  }
+
+  async readJudge(): Promise<JudgeSettings> {
+    return (await this.load()).judge;
+  }
+
+  async setJudge(value: JudgeSettings): Promise<JudgeSettings> {
+    const file = await this.load();
+    const judge = normaliseJudge(value);
+    await this.persist({ ...file, judge });
+    return judge;
   }
 }

@@ -75,6 +75,7 @@ export default function Board({
         {columns.map((column) => (
           <Column
             key={column.id}
+            board={board}
             column={column}
             cards={cardsInColumn(board, column.id)}
             agentsById={agentsById}

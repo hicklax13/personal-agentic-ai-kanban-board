@@ -5,7 +5,7 @@ import { buildClaudeCommand } from '../src/main/agents/claudeCode.js';
 import { buildCodexCommand } from '../src/main/agents/codex.js';
 import { buildHermesCommand } from '../src/main/agents/hermes.js';
 import { makeCard } from '../src/main/store/schema.js';
-import { normaliseProviderDefaults } from '../src/main/settings.js';
+import { normaliseJudge, normaliseProviderDefaults } from '../src/main/settings.js';
 import type { Card, CardAgentConfig, ProviderDefault } from '../shared/types.js';
 
 const cfg = (overrides: Partial<CardAgentConfig>): CardAgentConfig => defaultConfig(overrides);
@@ -177,5 +177,28 @@ describe('normaliseProviderDefaults', () => {
   it('ignores junk', () => {
     expect(normaliseProviderDefaults(null)).toEqual({});
     expect(normaliseProviderDefaults({ x: 'nope' })).toEqual({});
+  });
+});
+
+describe('normaliseJudge', () => {
+  it('defaults to no judge and five rounds', () => {
+    expect(normaliseJudge(undefined)).toMatchObject({ agentId: null, maxRounds: 5, allowedTools: [] });
+  });
+
+  it('keeps a well-formed judge and cleans its lists', () => {
+    expect(
+      normaliseJudge({
+        agentId: 'claude-code',
+        model: ' haiku ',
+        allowedTools: ['Read', 'Read', '', 7],
+        maxRounds: 8,
+      }),
+    ).toMatchObject({ agentId: 'claude-code', model: 'haiku', allowedTools: ['Read'], maxRounds: 8 });
+  });
+
+  it('keeps the round limit between 1 and 50', () => {
+    expect(normaliseJudge({ maxRounds: 0 }).maxRounds).toBe(1);
+    expect(normaliseJudge({ maxRounds: 500 }).maxRounds).toBe(50);
+    expect(normaliseJudge({ maxRounds: 'lots' }).maxRounds).toBe(5);
   });
 });

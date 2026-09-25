@@ -45,9 +45,10 @@ function run(cardId: string, id: string, overrides: Partial<AgentRun> = {}): Age
 
 describe('columns', () => {
   it('adds a column at the end', () => {
-    const next = addColumn(board(), 'Blocked');
-    expect(next.columns).toHaveLength(5);
-    expect(next.columns[4].title).toBe('Blocked');
+    const b = board();
+    const next = addColumn(b, 'Parked');
+    expect(next.columns).toHaveLength(b.columns.length + 1);
+    expect(next.columns[next.columns.length - 1].title).toBe('Parked');
   });
 
   it('renames a column without touching others', () => {
@@ -60,21 +61,21 @@ describe('columns', () => {
 
   it('reparents cards instead of deleting them when a column is removed', () => {
     const b = board();
-    const from = b.columns[0].id;
+    const from = b.cards[0].columnId;
     const cardCount = cardsInColumn(b, from).length;
     expect(cardCount).toBeGreaterThan(0);
 
     const next = deleteColumn(b, from);
-    expect(next.columns).toHaveLength(3);
-    // The card survived and moved to the new first column.
+    expect(next.columns).toHaveLength(b.columns.length - 1);
+    // The card survived and moved to the first remaining column.
+    const first = [...next.columns].sort((x, y) => x.position - y.position)[0];
     expect(next.cards).toHaveLength(b.cards.length);
-    expect(cardsInColumn(next, next.columns[0].id)).toHaveLength(cardCount);
+    expect(cardsInColumn(next, first.id)).toHaveLength(cardCount);
   });
 
   it('deletes cards when cascade is requested', () => {
     const b = board();
-    const from = b.columns[0].id;
-    const next = deleteColumn(b, from, { cascade: true });
+    const next = deleteColumn(b, b.cards[0].columnId, { cascade: true });
     expect(next.cards).toHaveLength(0);
   });
 
@@ -131,14 +132,14 @@ describe('moveCard', () => {
   it('moves a card to another column', () => {
     const b = board();
     const cardId = b.cards[0].id;
-    const target = b.columns[1].id;
+    const target = b.columns.find((c) => c.id !== b.cards[0].columnId)?.id as string;
     const next = moveCard(b, cardId, target, 0);
     expect(findCard(next, cardId)?.columnId).toBe(target);
   });
 
   it('reorders within a column and keeps positions strictly increasing', () => {
     let b = board();
-    const col = b.columns[0].id;
+    const col = b.cards[0].columnId;
     b = addCard(b, col, { title: 'second' });
     b = addCard(b, col, { title: 'third' });
 

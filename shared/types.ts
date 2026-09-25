@@ -52,6 +52,35 @@ export interface AgentRun {
   endedAt: string | null;
   /** Exact argv used, so a run is always reproducible from the UI. */
   command: string | null;
+  /** 'worker' does the task; 'judge' checks it in Goal mode. Absent on older runs. */
+  role?: RunRole;
+  /** Goal-mode round this run belongs to, counting from 1. */
+  round?: number;
+  /** The judge's decision, on judge runs only. */
+  verdict?: JudgeVerdict | null;
+}
+
+export type RunRole = 'worker' | 'judge';
+
+/**
+ * A judge's decision in Goal mode. Mirrors Hermes's goal judge: `continue`
+ * sends the reason back to the worker, `blocked` means the task cannot be
+ * finished as written and needs a person.
+ */
+export interface JudgeVerdict {
+  verdict: 'done' | 'continue' | 'blocked';
+  reason: string;
+}
+
+/** Progress of a Goal-mode loop, shown on the card. */
+export interface GoalState {
+  status: 'running' | 'done' | 'blocked' | 'stopped';
+  /** Round in progress or last finished, counting from 1. */
+  round: number;
+  maxRounds: number;
+  /** The judge's latest reason, or why the loop stopped. */
+  reason: string | null;
+  updatedAt: string;
 }
 
 export interface RunEvent {
@@ -85,9 +114,16 @@ export interface CardAgentConfig {
   chatSessionId: string | null;
   /** The instruction sent when the card is dispatched. */
   taskPrompt: string;
-  /** Working directory for the agent. Defaults to the board's workspace. */
+  /**
+   * Where the agent works: the board's folder, a folder of the card's own
+   * (`workingDirectory`), or a git worktree made from that folder's repository.
+   */
+  workspaceMode: WorkspaceMode;
+  /** The folder for 'dir' mode, and the repository to branch from in 'worktree' mode. */
   workingDirectory: string | null;
 }
+
+export type WorkspaceMode = 'board' | 'dir' | 'worktree';
 
 export interface Card {
   id: string;
@@ -104,6 +140,18 @@ export interface Card {
   runs: AgentRun[];
   createdAt: string;
   updatedAt: string;
+  /** A card that must reach DONE before this one may run. */
+  parentId: string | null;
+  /** When to start by itself (ISO time). Null means not scheduled. */
+  scheduledAt: string | null;
+  /** Run in a loop until the judge (Settings → Judge) agrees the task is done. */
+  goalMode: boolean;
+  /** Goal-loop progress; written by the main process only. */
+  goal: GoalState | null;
+  /** The git worktree made for this card, reused by its later runs. */
+  worktreePath: string | null;
+  /** Why the card is in BLOCKED, when the app put it there. */
+  blockedReason: string | null;
 }
 
 export interface Column {
@@ -428,6 +476,26 @@ export interface AppSettings {
   boardPath: string;
   /** Default model and effort per provider id, used when a card leaves them blank. */
   providerDefaults: Record<string, ProviderDefault>;
+  /** Who checks Goal-mode cards, and with what. */
+  judge: JudgeSettings;
+}
+
+/**
+ * The agent that decides whether a Goal-mode card is done. It runs in the same
+ * folder as the worker, so the tools, MCP servers, plugins and skills chosen
+ * here are what it can use to inspect the result.
+ */
+export interface JudgeSettings {
+  agentId: string | null;
+  providerId: string | null;
+  model: string | null;
+  effort: string | null;
+  allowedTools: string[];
+  allowedMcpServers: string[];
+  allowedPlugins: string[];
+  allowedSkills: string[];
+  /** Worker rounds before an unfinished goal is handed to a person. */
+  maxRounds: number;
 }
 
 /**
@@ -475,9 +543,55 @@ export const IPC = {
   dispatchStart: 'dispatch:start',
   dispatchCancel: 'dispatch:cancel',
 
+  settingsSetJudge: 'settings:setJudge',
+  pickFolder: 'dialog:pickFolder',
+  gitRepoInfo: 'git:repoInfo',
+
   /** main -> renderer stream of run updates. */
   runUpdate: 'run:update',
+  /** main -> renderer: the workflow moved or changed a card (schedule, parent, goal). */
+  cardPatch: 'board:cardPatch',
 } as const;
+
+/** Fields the main process changes on its own; everything else is the window's. */
+export type CardWorkflowPatch = Partial<
+  Pick<Card, 'columnId' | 'goal' | 'worktreePath' | 'blockedReason' | 'scheduledAt'>
+>;
+
+/**
+ * A workflow change pushed to the window. `seq` increases with every change;
+ * the window sends back the highest one it has applied with each save, so the
+ * main process can tell a save that simply had not seen a change yet from one
+ * where the user deliberately changed the card afterwards.
+ */
+export interface CardPatchUpdate {
+  cardId: string;
+  patch: CardWorkflowPatch;
+  seq: number;
+}
+
+export interface LoadedBoard {
+  board: BoardState;
+  /** The latest workflow change already included in `board`. */
+  patchSeq: number;
+}
+
+export interface DispatchResult {
+  ok: boolean;
+  runId?: string;
+  error?: string;
+  /** True when the card was parked to start later rather than run now. */
+  queued?: boolean;
+  /** Plain-language note for the user, e.g. why it was queued. */
+  info?: string;
+}
+
+export interface GitRepoInfo {
+  ok: boolean;
+  /** Top folder of the repository, when `path` is inside one. */
+  root?: string;
+  error?: string;
+}
 
 /** Payload pushed to the renderer as a run progresses. */
 export interface RunUpdate {
@@ -502,8 +616,9 @@ export interface AgentTestResult {
 
 /** The surface exposed on `window.api` by the preload script. */
 export interface RendererApi {
-  loadBoard(): Promise<BoardState>;
-  saveBoard(state: BoardState): Promise<{ ok: boolean; error?: string }>;
+  loadBoard(): Promise<LoadedBoard>;
+  /** `seenPatchSeq`: the highest workflow change this window has applied. */
+  saveBoard(state: BoardState, seenPatchSeq: number): Promise<{ ok: boolean; error?: string }>;
   revealBoardFile(): Promise<void>;
 
   getDiscovery(): Promise<DiscoveryReport>;
@@ -527,8 +642,14 @@ export interface RendererApi {
   mcpSignIn(owner: string, name: string): Promise<AccountActionResult>;
   onMcpSignInProgress(cb: (p: McpSignInProgress) => void): () => void;
 
-  startDispatch(req: DispatchRequest): Promise<{ ok: boolean; runId?: string; error?: string }>;
+  startDispatch(req: DispatchRequest): Promise<DispatchResult>;
   cancelDispatch(cardId: string): Promise<{ ok: boolean }>;
 
+  setJudge(judge: JudgeSettings): Promise<AppSettings>;
+  /** Native folder picker; null when cancelled. */
+  pickFolder(defaultPath?: string | null): Promise<string | null>;
+  gitRepoInfo(path: string): Promise<GitRepoInfo>;
+
   onRunUpdate(cb: (u: RunUpdate) => void): () => void;
+  onCardPatch(cb: (u: CardPatchUpdate) => void): () => void;
 }

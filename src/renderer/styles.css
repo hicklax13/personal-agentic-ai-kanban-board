@@ -153,7 +153,8 @@ textarea {
 /* --------------------------------------------------------------- columns */
 
 .column {
-  width: 300px;
+  /* Eight workflow columns: narrow enough that most of the flow fits on one screen. */
+  width: 260px;
   flex-shrink: 0;
   background: var(--bg-raised);
   border: 1px solid var(--border);
@@ -830,4 +831,239 @@ code.inline {
   display: inline-block;
   width: 70px;
   color: var(--text-faint);
+}
+
+/* ------------------------------------------------------- new task popup */
+
+.modal.task-modal {
+  width: 760px;
+}
+.task-title-input {
+  font-size: 14px;
+  padding: 8px 10px;
+}
+.task-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.task-foot {
+  align-items: center;
+}
+.task-outlook {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.field-note {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: -6px 0 12px;
+}
+
+/* -------------------------------------------------------------- toggle */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.toggle-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(14px);
+  background: #fff;
+}
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.toggle-label {
+  font-size: 12.5px;
+}
+.toggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------ skills / MCP / tools */
+
+.scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+details.scope {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+details.scope > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+details.scope > summary::-webkit-details-marker {
+  display: none;
+}
+details.scope > summary::before {
+  content: '▸';
+  color: var(--text-faint);
+  margin-right: 2px;
+}
+details.scope[open] > summary::before {
+  content: '▾';
+}
+details.scope > summary > span:first-of-type {
+  flex: 1;
+}
+.scope-count {
+  font-weight: 400;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+details.scope[open] {
+  padding-bottom: 8px;
+}
+details.scope > .multiselect,
+details.scope > .hint {
+  margin: 0 9px;
+}
+details.scope > .hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 5px;
+}
+details.scope > .hint.warn {
+  color: #d9a441;
+}
+
+/* ------------------------------------------------------ workflow chips */
+
+.chip.flow-wait {
+  background: #2b2413;
+  color: #ffce7a;
+  border-color: #6b5324;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip.flow-sched {
+  background: #10282e;
+  color: #7fd3e3;
+  border-color: #1f5561;
+}
+.chip.flow-goal {
+  background: #221a38;
+  color: #c4b1ff;
+  border-color: #4a3a7a;
+}
+.card-output.blocked {
+  color: #ff9c94;
+}
+
+.goal-status {
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #4a3a7a;
+  background: #1c1630;
+  color: #c4b1ff;
+  font-size: 11.5px;
+}
+.goal-status.goal-done {
+  border-color: #2a5c38;
+  background: #13261a;
+  color: #74d68a;
+}
+.goal-status.goal-blocked {
+  border-color: #6b2b2b;
+  background: #2d1616;
+  color: #ff9c94;
+}
+.goal-status.goal-stopped {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.round-row {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  font-size: 11.5px;
+}
+.round-row .chip {
+  flex-shrink: 0;
+}
+.round-text {
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+/* Labels one level down (two fields side by side in a .row) look like every other label. */
+.field.row > div > label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+/* A switch is a label too, but must not take the field-label look (".field > label"). */
+.field > label.toggle {
+  display: inline-flex;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+.toggle-track,
+.toggle-thumb {
+  display: block;
 }
